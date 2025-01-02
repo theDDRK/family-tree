@@ -1,0 +1,12 @@
+{
+    "compilerOptions": {
+      "jsx": "react",
+      "removeComments": true,
+      "preserveConstEnums": true,
+      "sourceMap": true,
+      "esModuleInterop": true,
+      "target": "ES2024",
+    },
+    "include": ["src/**/*"],
+    "exclude": ["**/*.spec.ts"]
+  }
