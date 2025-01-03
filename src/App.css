@@ -45,6 +45,8 @@
 }
 
 .navbar {
+  display: flex;
+  flex-direction: column;
   justify-content: center;
   align-items: center;
   padding: 10px 20px;
@@ -55,6 +57,9 @@
   background-color: var(--navbar-color);
   color: white;
   max-height: 50px;
+  border-radius: 10px;
+  width: 70%;
+  left: 15%;
 }
 
 .title {
@@ -62,8 +67,20 @@
   display: flex;
   align-items: center;
   left: 20px;
-  font-size: 24px;
+  font-size: 20px;
   font-weight: bold;
+}
+
+@media (max-width: 900px) {
+  .title {
+    font-size: 16px;
+  }
+}
+
+@media (max-width: 810px) {
+  .title {
+    visibility: hidden;
+  }
 }
 
 .links {
@@ -88,9 +105,12 @@
   background-color: var(--primary-color);
 }
 
-/* customize the scroll */
 ::-webkit-scrollbar {
   width: 10px;
-  color: #000;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--navbar-color);
+  border-radius: 10px;
 }
 

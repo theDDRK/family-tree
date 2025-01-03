@@ -16,6 +16,7 @@ const Navbar: React.FC = () => {
                 <button className='link' onClick={navigate('/')}>Overzicht</button>
                 <button className='link' onClick={navigate('/stamboom')}>Stamboom</button>
                 <button className='link' onClick={navigate('/statistieken')}>Statistieken</button>
+                <button className='link' onClick={navigate('/connecties')}>Connecties</button>
             </div>
         </nav>
     );

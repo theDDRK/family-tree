@@ -8,20 +8,31 @@ import Family from './components/Family';
 import { Positions } from './interfaces/IPositions';
 import Tree from './pages/Tree';
 import Navbar from './components/Navbar';
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import Home from './pages/Home';
 import Statistics from './pages/Statistics';
+import { arrayBuffer } from 'stream/consumers';
+import Connections from './pages/Connections';
 
 function App() {
-  const filename = '/marloesrutgers_2024-12-17.ged';
-  // const filename = '/Harry+Potter+Family+Tree.ged';
-  // const filename = '/sample-gedcom.ged';
+  const [persons, setPersons] = React.useState<IPersons>();
+  const [rootPerson, setRootPerson] = React.useState<IPerson>();
+  const [generations, setGenerations] = React.useState<number>();
+  const [families, setFamilies] = React.useState<IFamilies>();
+  const [filename, setFilename] = React.useState<string>(localStorage.getItem('filename'));
+  const [arrayBuffer, setArrayBuffer] = React.useState<ArrayBuffer>(
+    new TextEncoder().encode(localStorage.getItem('arrayBuffer') || '').buffer
+  );
 
-  useEffect(() => {
-    const promise = fetch(filename)
-      .then(r => r.arrayBuffer())
-      .then(readGedcom);
+  const handleUpload = (filename: string, arrayBuffer: ArrayBuffer) => {
+    localStorage.setItem('filename', filename);
+    localStorage.setItem('arrayBuffer', new TextDecoder().decode(arrayBuffer));
 
+    const promise = new Promise((resolve, reject) => {
+      const gedcom = readGedcom(arrayBuffer);
+      resolve(gedcom);
+    });
+    
     promise.then(gedcom => {
       const individualRecords = Array.from(gedcom.getIndividualRecord());
       const persons = parsePersons(individualRecords);
@@ -51,22 +62,28 @@ function App() {
       console.log('persons with generations', personsWithGenerations);
 
       setPersons({ persons: personsWithGenerations });
+      setFilename(filename);
+      setArrayBuffer(arrayBuffer);
     });
-  }, []);
 
-  const [persons, setPersons] = React.useState<IPersons>();
-  const [rootPerson, setRootPerson] = React.useState<IPerson>();
-  const [generations, setGenerations] = React.useState<number>();
-  const [families, setFamilies] = React.useState<IFamilies>();
+  };
+  
+  useEffect(() => {
+    if (filename && arrayBuffer.byteLength > 0) {
+      handleUpload(filename, arrayBuffer);
+    }
+  }, [arrayBuffer, filename]);
 
   return (
     <div className='App'>
       <Navbar />
       <BrowserRouter>
         <Routes>
-          <Route path='/' element={<Home />} />
-          <Route path='/stamboom' element={<Tree persons={persons} rootPerson={rootPerson} generations={generations} families={families} />} />
-          <Route path='/statistieken' element={<Statistics persons={persons} />} />
+          <Route path='/' element={<Home filename={filename} persons={persons} handleFileChange={handleUpload} />} />
+          {persons && <Route path='/stamboom' element={<Tree persons={persons} rootPerson={rootPerson} generations={generations} families={families} />} />}
+          {persons && <Route path='/statistieken' element={<Statistics persons={persons} />} />}
+          {persons && <Route path='/connecties' element={<Connections persons={persons} />} />}
+          <Route path='*' element={<Navigate to='/' />} />
         </Routes>
       </BrowserRouter>
     </div>
