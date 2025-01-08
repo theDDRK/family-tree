@@ -13,6 +13,9 @@ import Home from './pages/Home';
 import Statistics from './pages/Statistics';
 import { arrayBuffer } from 'stream/consumers';
 import Connections from './pages/Connections';
+import Hints from './pages/Hints';
+import PersonDetail from './pages/PersonDetail';
+import Persons from './pages/Persons';
 
 function App() {
   const [persons, setPersons] = React.useState<IPersons>();
@@ -32,7 +35,7 @@ function App() {
       const gedcom = readGedcom(arrayBuffer);
       resolve(gedcom);
     });
-    
+
     promise.then(gedcom => {
       const individualRecords = Array.from(gedcom.getIndividualRecord());
       const persons = parsePersons(individualRecords);
@@ -42,10 +45,10 @@ function App() {
       const families = parseFamilies(familyRecords);
       console.log(families);
       setFamilies(families);
-      
+
       addRelationshipsToPersons(persons, families);
       console.log(persons);
-      
+
       const leafs = persons.persons.filter(person => person.children.length === 0);
       const leafGenerations = leafs.map(leaf => calculateGenerations(leaf));
       const maxGenerations = Math.max(...leafGenerations.map(([person, generation]) => generation));
@@ -67,7 +70,7 @@ function App() {
     });
 
   };
-  
+
   useEffect(() => {
     if (filename && arrayBuffer.byteLength > 0) {
       handleUpload(filename, arrayBuffer);
@@ -83,7 +86,10 @@ function App() {
           {persons && <Route path='/stamboom' element={<Tree persons={persons} rootPerson={rootPerson} generations={generations} families={families} />} />}
           {persons && <Route path='/statistieken' element={<Statistics persons={persons} />} />}
           {persons && <Route path='/connecties' element={<Connections persons={persons} />} />}
-          <Route path='*' element={<Navigate to='/' />} />
+          {persons && <Route path='/personen' element={<Persons persons={persons} />} />}
+          {persons && <Route path='/personen/:id' element={<PersonDetail persons={persons} />} />}
+          {persons && <Route path='/hints' element={<Hints persons={persons} />} />}
+          {/* <Route path='/*' element={<Navigate to='/' />} /> */}
         </Routes>
       </BrowserRouter>
     </div>
@@ -250,11 +256,11 @@ function App() {
             const children = family.children
               .map(child => persons.persons.find(person => person.pointer === child) || null);
             if (children.length > 0) {
-                children.forEach(child => {
+              children.forEach(child => {
                 if (!person.children.some(existingChild => existingChild.pointer === child.pointer)) {
                   person.children.push(child);
                 }
-                });
+              });
             }
           }
         }
@@ -264,34 +270,34 @@ function App() {
 
   function calculateGenerations(person: IPerson, generation: number = 0): [IPerson[], number] {
     if (!person.father && !person.mother) {
-        return [[person], generation];
+      return [[person], generation];
     }
 
     const [fatherAncestors, fatherGeneration] = person.father
-        ? calculateGenerations(person.father, generation + 1)
-        : [[], 0];
+      ? calculateGenerations(person.father, generation + 1)
+      : [[], 0];
     const [motherAncestors, motherGeneration] = person.mother
-        ? calculateGenerations(person.mother, generation + 1)
-        : [[], 0];
+      ? calculateGenerations(person.mother, generation + 1)
+      : [[], 0];
 
     if (fatherGeneration > motherGeneration) {
-        return [fatherAncestors, fatherGeneration];
+      return [fatherAncestors, fatherGeneration];
     } else if (motherGeneration > fatherGeneration) {
-        return [motherAncestors, motherGeneration];
+      return [motherAncestors, motherGeneration];
     } else {
-        return [[...fatherAncestors, ...motherAncestors], fatherGeneration];
+      return [[...fatherAncestors, ...motherAncestors], fatherGeneration];
     }
   }
 
   function addGenerationToPerson(person: IPerson, generation: number, visited: Set<string> = new Set()) {
     if (!person || visited.has(person.pointer)) return; // Avoid reprocessing
     visited.add(person.pointer); // Mark person as visited
-  
+
     person.generation = generation;
-  
+
     // Recurse through children
     person.children.forEach(child => addGenerationToPerson(child, generation + 1, visited));
-  
+
     // Recurse through partners
     person.partners.forEach(partner => addGenerationToPerson(partner, generation, visited));
 

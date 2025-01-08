@@ -2,6 +2,7 @@
   --primary-color: #87CEEB;
   --secondary-color: #FFB6C1;
   --navbar-color: #2B4162;
+  --navbar-color-light: #ccdcee;
 }
 
 .App {
@@ -60,6 +61,7 @@
   border-radius: 10px;
   width: 70%;
   left: 15%;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
 }
 
 .title {
@@ -114,3 +116,68 @@
   border-radius: 10px;
 }
 
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 25px 0;
+  font-size: 18px;
+  text-align: left;
+}
+
+table th, table td {
+  padding: 12px 15px;
+  border: 1px solid #ddd;
+}
+
+table th {
+  background-color: var(--navbar-color);
+  color: white;
+}
+
+table tr:nth-child(even) {
+  background-color: #f3f3f3;
+}
+
+table tr:hover {
+  background-color: var(--navbar-color-light);
+}
+
+table caption {
+  margin: 10px;
+  font-size: 24px;
+  font-weight: bold;
+}
+
+.label {
+  margin: 10px 0;
+  padding: 5px 10px;
+  background-color: #f0f0f0;
+  border-radius: 15px;
+  display: inline-block;
+  color: #666;
+}
+
+.label.M:hover {
+  background-color: var(--primary-color);
+  color: #14a8e2;
+}
+
+.label.F:hover {
+  background-color: var(--secondary-color);
+  color: #ff4e68
+}
+
+.scroll-to-top {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  background-color: var(--navbar-color);
+  color: white;
+  border: none;
+  border-radius: 10%;
+  width: 40px;
+  height: 40px;
+  font-size: 24px;
+  cursor: pointer;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+}

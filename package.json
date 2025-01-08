@@ -1,6 +1,7 @@
 {
   "name": "family-tree",
   "version": "0.1.0",
+  "homepage": "https://theDDRK.github.io/family-tree",
   "private": true,
   "dependencies": {
     "cra-template-typescript": "1.2.0",
@@ -15,7 +16,9 @@
     "start": "react-scripts start",
     "build": "react-scripts build",
     "test": "react-scripts test",
-    "eject": "react-scripts eject"
+    "eject": "react-scripts eject",
+    "predeploy": "npm run build",
+    "deploy": "gh-pages -d build"
   },
   "eslintConfig": {
     "extends": [
@@ -37,6 +40,7 @@
   },
   "devDependencies": {
     "@types/react": "^19.0.2",
-    "@types/react-dom": "^19.0.2"
+    "@types/react-dom": "^19.0.2",
+    "gh-pages": "^6.3.0"
   }
 }
