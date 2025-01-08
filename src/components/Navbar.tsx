@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 
 const Navbar: React.FC = () => {
     const [scrollY, setScrollY] = useState(0);
+    const rootPath = '/family-tree';
 
     useEffect(() => {
         const handleScroll = () => setScrollY(window.scrollY);
@@ -22,12 +23,12 @@ const Navbar: React.FC = () => {
                     <p style={{color: '#FFB6C1', marginBlock: '0', marginInline: '0'}}>Boom</p>
                 </div>
                 <div className='links'>
-                    <button className='link' onClick={navigate('/')}>Home</button>
-                    <button className='link' onClick={navigate('/stamboom')}>Stamboom</button>
-                    <button className='link' onClick={navigate('/personen')}>Personen</button>
-                    <button className='link' onClick={navigate('/statistieken')}>Statistieken</button>
-                    <button className='link' onClick={navigate('/connecties')}>Connecties</button>
-                    <button className='link' onClick={navigate('/hints')}>Hints</button>
+                    <button className='link' onClick={navigate(rootPath + '/')}>Home</button>
+                    <button className='link' onClick={navigate(rootPath + '/stamboom')}>Stamboom</button>
+                    <button className='link' onClick={navigate(rootPath + '/personen')}>Personen</button>
+                    <button className='link' onClick={navigate(rootPath + '/statistieken')}>Statistieken</button>
+                    <button className='link' onClick={navigate(rootPath + '/connecties')}>Connecties</button>
+                    <button className='link' onClick={navigate(rootPath + '/hints')}>Hints</button>
                 </div>
             </nav>
             {scrollY > 100 && <button 

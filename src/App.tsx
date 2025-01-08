@@ -80,7 +80,7 @@ function App() {
   return (
     <div className='App'>
       <Navbar />
-      <BrowserRouter>
+      <BrowserRouter basename='/family-tree'>
         <Routes>
           <Route path='/' element={<Home filename={filename} persons={persons} handleFileChange={handleUpload} />} />
           {persons && <Route path='/stamboom' element={<Tree persons={persons} rootPerson={rootPerson} generations={generations} families={families} />} />}

@@ -25,7 +25,7 @@ function Persons({persons}: {persons: IPersons}) {
                                 <td>{person.birth?.date}</td>
                                 <td>{person.death?.date}</td>
                                 <td>{person.children.map(child => (
-                                    <a href={`/personen/${child.pointer}`} className={`label ${child.sex}`} key={person.pointer + child.pointer}>
+                                    <a href={`/family-tree/personen/${child.pointer}`} className={`label ${child.sex}`} key={person.pointer + child.pointer}>
                                         {child.firstName}
                                     </a>
                                 ))}</td>

@@ -23,7 +23,7 @@ function HintsTable({ id, title, persons }: { id: string, title: string, persons
                     {persons.map(person => (
                         <tr key={person.pointer}>
                             <td>
-                                <a href={`/personen/${person.pointer}`}>
+                                <a href={`/family-tree/personen/${person.pointer}`}>
                                     {`${person.firstName} ${person.lastName} ${person.birth?.date ? `(${new Date(person.birth.date.substring(-4)).getFullYear()})` : ''}`}
                                 </a>
                             </td>

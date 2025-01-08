@@ -1,7 +1,7 @@
 {
   "name": "family-tree",
   "version": "0.1.0",
-  "homepage": "https://theDDRK.github.io/family-tree",
+  "homepage": "https://theddrk.github.io/family-tree",
   "private": true,
   "dependencies": {
     "cra-template-typescript": "1.2.0",
