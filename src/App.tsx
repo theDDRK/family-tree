@@ -64,7 +64,7 @@ function App() {
       const personsWithGenerations = persons.persons.filter(person => person.generation !== null);
       console.log('persons with generations', personsWithGenerations);
 
-      setPersons({ persons: personsWithGenerations });
+      setPersons({ persons: persons.persons });
       setFilename(filename);
       setArrayBuffer(arrayBuffer);
     });
@@ -299,14 +299,14 @@ function App() {
     person.children.forEach(child => addGenerationToPerson(child, generation + 1, visited));
 
     // Recurse through partners
-    person.partners.forEach(partner => addGenerationToPerson(partner, generation, visited));
+    // person.partners.forEach(partner => addGenerationToPerson(partner, generation, visited));
 
     // Recurse through siblings
-    person.siblings.forEach(sibling => addGenerationToPerson(sibling, generation, visited));
+    // person.siblings.forEach(sibling => addGenerationToPerson(sibling, generation, visited));
 
     // Recurse through parents
-    if (person.father) addGenerationToPerson(person.father, generation - 1, visited);
-    if (person.mother) addGenerationToPerson(person.mother, generation - 1, visited);
+    // if (person.father) addGenerationToPerson(person.father, generation - 1, visited);
+    // if (person.mother) addGenerationToPerson(person.mother, generation - 1, visited);
   }
 }
 

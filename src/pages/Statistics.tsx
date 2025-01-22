@@ -273,6 +273,41 @@ function Statistics({ persons }: { persons: IPersons }) {
                     </div>
                 </div>
             </div>
+            <h2>Meest voorkomende achternamen</h2>
+            <div style={{ display: 'flex', flexDirection: 'row', justifyContent: 'center' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                    <div style={{ maxHeight: '400px', overflowY: 'auto' }}>
+                        <table style={{ textAlign: 'left', borderSpacing: '10px 0' }}>
+                            <thead>
+                                <tr>
+                                    <th>Rang</th>
+                                    <th>Achternaam</th>
+                                    <th>Aantal</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {Object.entries(persons.persons.reduce((acc, person) => {
+                                    acc[person.lastName] = (acc[person.lastName] || 0) + 1;
+                                    return acc;
+                                }, {} as Record<string, number>))
+                                    .sort((a, b) => b[1] - a[1])
+                                    .reduce((acc, [name, count], index, array) => {
+                                        const rank = index > 0 && array[index - 1][1] === count ? acc[acc.length - 1].rank : index + 1;
+                                        acc.push({ rank, name, count });
+                                        return acc;
+                                    }, [] as { rank: number, name: string, count: number }[])
+                                    .map(({ rank, name, count }) => (
+                                        <tr key={name}>
+                                            <td>{rank}</td>
+                                            <td>{name}</td>
+                                            <td>{count}</td>
+                                        </tr>
+                                    ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
             <h2>Verdeling mannen en vrouwen</h2>
             <div style={{ display: 'flex', flexDirection: 'row', justifyContent: 'center' }}>
                 <PieChart width={800} height={400}>

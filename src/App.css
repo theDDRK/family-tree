@@ -181,3 +181,41 @@ table caption {
   cursor: pointer;
   box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
 }
+
+.linage {
+  fill: none;
+  stroke: black;
+}
+.marriage {
+  fill: none;
+  stroke: black;
+}
+.node {
+  background-color: white;
+  border-style: solid;
+  border-width: .5px;
+}
+.node.M {
+  background-color: lightblue;
+}
+.node.F {
+  background-color: pink;
+}
+.node.selected {
+  background-color: yellow !important;
+}
+.nodeDiv {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+.nodeText {
+  font: 10px sans-serif;
+  margin-block-start: 0;
+  margin-block-end: 0;
+  margin-left: 3px;
+}
+.marriageNode {
+  background-color: black;
+  border-radius: 50%;
+}
