@@ -1,5 +1,6 @@
 import React from 'react';
 import { IPersons } from '../interfaces/IPersons';
+import { Link } from '../../node_modules/react-router-dom/dist/index';
 
 function Persons({persons}: {persons: IPersons}) {
         return (
@@ -20,14 +21,14 @@ function Persons({persons}: {persons: IPersons}) {
                     <tbody>
                         {persons.persons.map(person => (
                             <tr key={person.pointer}>
-                                <td>{person.firstName}</td>
+                                <td><Link to={`/personen/${person.pointer}`}>{person.firstName}</Link></td>
                                 <td>{person.lastName}</td>
                                 <td>{person.birth?.date}</td>
                                 <td>{person.death?.date}</td>
                                 <td>{person.children.map(child => (
-                                    <a href={`/family-tree/personen/${child.pointer}`} className={`label ${child.sex}`} key={person.pointer + child.pointer}>
+                                    <Link to={`/personen/${child.pointer}`} className={`label ${child.sex}`} key={person.pointer + child.pointer}>
                                         {child.firstName}
-                                    </a>
+                                    </Link>
                                 ))}</td>
 
                             </tr>

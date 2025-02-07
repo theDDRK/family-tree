@@ -1,6 +1,7 @@
 import React from 'react';
 import { useParams } from 'react-router-dom';
 import { IPerson, IPersons } from '../interfaces/IPersons';
+import { Link } from '../../node_modules/react-router-dom/dist/index';
 
 function PersonDetail({ persons }: { persons: IPersons }) {
     const { id } = useParams<{ id: string }>();
@@ -22,19 +23,19 @@ function PersonDetail({ persons }: { persons: IPersons }) {
                     </tr>
                     <tr>
                         <td>Geboortedatum</td>
-                        <td>{person.birth?.date}</td>
+                        <td>{`${person.birth?.date} ${person.birth?.place ? `(${person.birth.place})` : ''}`}</td>
                     </tr>
                     <tr>
                         <td>Overlijdensdatum</td>
-                        <td>{person.death?.date}</td>
+                        <td>{`${person.death?.date} ${person.death?.place ? `(${person.death.place})` : ''}`}</td>
                     </tr>
                     <tr>
                         <td>Vader</td>
                         <td>
                             {person.father && (
-                                <a href={`/family-tree/personen/${person.father.pointer}`} className={`label ${person.father.sex}`}>
+                                <Link to={`/personen/${person.pointer}`} className={`label ${person.father.sex}`}>
                                     {`${person.father.firstName} ${person.father.lastName} ${person.father.birth?.date ? `(${new Date(person.father.birth.date.substring(-4)).getFullYear()})` : ''}`}
-                                    </a>
+                                </Link>
                             )}
                         </td>
                     </tr>
@@ -42,9 +43,9 @@ function PersonDetail({ persons }: { persons: IPersons }) {
                         <td>Moeder</td>
                         <td>
                             {person.mother && (
-                                <a href={`/family-tree/personen/${person.mother.pointer}`} className={`label ${person.mother.sex}`}>
+                                <Link to={`/personen/${person.mother.pointer}`} className={`label ${person.mother.sex}`}>
                                     {`${person.mother.firstName} ${person.mother.lastName} ${person.mother.birth?.date ? `(${new Date(person.mother.birth.date.substring(-4)).getFullYear()})` : ''}`}
-                                </a>
+                                </Link>
                             )}
                         </td>
                     </tr>
@@ -52,9 +53,9 @@ function PersonDetail({ persons }: { persons: IPersons }) {
                         <td>Broers en zussen</td>
                         <td>
                             {person.siblings && person.siblings.map(sibling => (
-                                <a href={`/family-tree/personen/${sibling.pointer}`} className={`label ${sibling.sex}`} key={sibling.pointer}>
+                                <Link to={`/personen/${sibling.pointer}`} className={`label ${sibling.sex}`} key={sibling.pointer}>
                                     {`${sibling.firstName} ${sibling.lastName} ${sibling.birth?.date ? `(${new Date(sibling.birth.date.substring(-4)).getFullYear()})` : ''}`}
-                                </a>
+                                </Link>
                             ))}
                         </td>
                     </tr>
@@ -64,9 +65,9 @@ function PersonDetail({ persons }: { persons: IPersons }) {
                                 <tr>
                                     <td>{`(${index + 1}) Partner:`}</td>
                                     <td>
-                                        <a href={`/family-tree/personen/${partner.pointer}`} className={`label ${partner.sex}`}>
+                                        <Link to={`/personen/${partner.pointer}`} className={`label ${partner.sex}`}>
                                             {`${partner.firstName} ${partner.lastName} ${partner.birth?.date ? `(${new Date(partner.birth.date.substring(-4)).getFullYear()})` : ''}`}
-                                        </a>
+                                        </Link>
                                     </td>
                                 </tr>
                                 {partner.children && partner.children.length > 0 && <tr>
@@ -75,9 +76,9 @@ function PersonDetail({ persons }: { persons: IPersons }) {
                                         Kinderen:
                                         {partner.children && partner.children.length > 0 ? (
                                             partner.children.map(child => (
-                                                <a href={`/family-tree/personen/${child.pointer}`} className={`label ${child.sex}`} key={child.pointer}>
+                                                <Link to={`/personen/${child.pointer}`} className={`label ${child.sex}`} key={child.pointer}>
                                                     {`${child.firstName} ${child.lastName} ${child.birth?.date ? `(${new Date(child.birth.date.substring(-4)).getFullYear()})` : ''}`}
-                                                </a>
+                                                </Link>
                                             ))
                                         ) : (
                                             <span>Geen kinderen</span>

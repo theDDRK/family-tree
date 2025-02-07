@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { IPerson } from '../interfaces/IPersons';
+import { Link } from '../../node_modules/react-router-dom/dist/index';
 
 function HintsTable({ id, title, persons }: { id: string, title: string, persons: IPerson[] }) {
     const [showBody, setShowBody] = useState(false);
@@ -23,9 +24,9 @@ function HintsTable({ id, title, persons }: { id: string, title: string, persons
                     {persons.map(person => (
                         <tr key={person.pointer}>
                             <td>
-                                <a href={`/family-tree/personen/${person.pointer}`}>
+                                <Link to={`/personen/${person.pointer}`}>
                                     {`${person.firstName} ${person.lastName} ${person.birth?.date ? `(${new Date(person.birth.date.substring(-4)).getFullYear()})` : ''}`}
-                                </a>
+                                </Link>
                             </td>
                         </tr>
                     ))}

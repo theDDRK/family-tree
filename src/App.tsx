@@ -239,7 +239,7 @@ function App() {
           person.father = persons.persons.find(person => person.pointer === family.husband) || null;
           person.mother = persons.persons.find(person => person.pointer === family.wife) || null;
           person.siblings = family.children
-            .filter(child => child !== person.familyChild)
+            .filter(child => child !== person.pointer)
             .map(child => persons.persons.find(person => person.pointer === child) || null);
         }
       }
