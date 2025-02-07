@@ -33,7 +33,7 @@ function PersonDetail({ persons }: { persons: IPersons }) {
                         <td>Vader</td>
                         <td>
                             {person.father && (
-                                <Link to={`/personen/${person.pointer}`} className={`label ${person.father.sex}`}>
+                                <Link to={`/personen/${person.father.pointer}`} className={`label ${person.father.sex}`}>
                                     {`${person.father.firstName} ${person.father.lastName} ${person.father.birth?.date ? `(${new Date(person.father.birth.date.substring(-4)).getFullYear()})` : ''}`}
                                 </Link>
                             )}
