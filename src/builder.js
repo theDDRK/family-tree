@@ -38,8 +38,8 @@ class TreeBuilder {
       let allNodes = this.allNodes;
       let nodeSize = this.nodeSize;
   
-      let width = opts.width + opts.margin.left + opts.margin.right;
-      let height = opts.height + opts.margin.top + opts.margin.bottom;
+      let width = this.width = opts.width + opts.margin.left + opts.margin.right;
+      let height = this.height = opts.height + opts.margin.top + opts.margin.bottom;
   
       // create zoom handler
       const zoom = this.zoom = d3.zoom()
@@ -186,6 +186,18 @@ class TreeBuilder {
             opts.callbacks.nodeRightClick.call(this, d.data.name, d.data.extra, d.data.id)
           }
         });
+
+      // Find the selected node to center the viewport on it
+      let selectedNode = _.find(treenodes.descendants(), function(d) {
+        return d.data.class && d.data.class.indexOf('selected') !== -1;
+      });
+      if (selectedNode) {
+        let x = this.width / 2 - selectedNode.x;
+        let y = this.height / 2 - selectedNode.y;
+        this.svg.call(this.zoom.transform, d3.zoomIdentity.translate(x, y).scale(1));
+      } else {
+        this.svg.call(this.zoom.transform, d3.zoomIdentity.translate(this.width / 2, this.opts.margin.top).scale(1));
+      }
     }
   
     _flatten(root) {

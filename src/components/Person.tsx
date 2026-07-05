@@ -24,39 +24,51 @@ function Person({ person, position, width, height }: { person: IPerson, position
   };
 
 
+  const basePath = '/family-tree';
+
   return (
-    <g key={person.pointer} transform={`translate(${position.x}, ${position.y})`}>
-      <rect
-        x="0"
-        y="0"
-        width={width}
-        height={height}
-        fill={person.sex === 'M' ? '#87CEEB' : '#FFB6C1'}
-        stroke="#000"
-      />
-      <text x="10" y="20" fill="black">
-        {`${person.firstName || ''}`}
-      </text>
-      <text x="10" y="40" fill="black">
-        {`${person.lastName || ''}`}
-      </text>
-      {person.birth.date && (
-        <>
-          <image xlinkHref="birth.svg" x="5" y="57" width="20" height="20" />
-          <text x="28" y="75" fill="black">
-            {formatDate(person.birth.date)}
-          </text>
-        </>
-      )}
-      {person.death.date && (
-        <>
-          <image xlinkHref="death.svg" x="7" y="79" width="15" height="20" />
-          <text x="28" y="95" fill="black">
-            {formatDate(person.death.date)}
-          </text>
-        </>
-      )}
-    </g>
+    <a
+      href={`${basePath}/personen/${person.pointer}`}
+      onClick={(e) => {
+        e.preventDefault();
+        window.history.pushState({}, '', `${basePath}/personen/${person.pointer}`);
+        window.dispatchEvent(new PopStateEvent('popstate'));
+      }}
+      style={{ textDecoration: 'none', cursor: 'pointer' }}
+    >
+      <g key={person.pointer} transform={`translate(${position.x}, ${position.y})`}>
+        <rect
+          x="0"
+          y="0"
+          width={width}
+          height={height}
+          fill={person.sex === 'M' ? '#87CEEB' : '#FFB6C1'}
+          stroke="#000"
+        />
+        <text x="10" y="20" fill="black">
+          {`${person.firstName || ''}`}
+        </text>
+        <text x="10" y="40" fill="black">
+          {`${person.lastName || ''}`}
+        </text>
+        {person.birth.date && (
+          <>
+            <image xlinkHref="birth.svg" x="5" y="57" width="20" height="20" />
+            <text x="28" y="75" fill="black">
+              {formatDate(person.birth.date)}
+            </text>
+          </>
+        )}
+        {person.death.date && (
+          <>
+            <image xlinkHref="death.svg" x="7" y="79" width="15" height="20" />
+            <text x="28" y="95" fill="black">
+              {formatDate(person.death.date)}
+            </text>
+          </>
+        )}
+      </g>
+    </a>
   );
 };
 

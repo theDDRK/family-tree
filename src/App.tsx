@@ -1,81 +1,158 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useCallback } from 'react';
 import './App.css';
 import { readGedcom } from 'read-gedcom';
-import Person from './components/Person';
 import { IDatePlace, IPerson, IPersons } from './interfaces/IPersons';
 import { IFamilies } from './interfaces/IFamilies';
-import Family from './components/Family';
-import { Positions } from './interfaces/IPositions';
 import Tree from './pages/Tree';
 import Navbar from './components/Navbar';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import Home from './pages/Home';
 import Statistics from './pages/Statistics';
-import { arrayBuffer } from 'stream/consumers';
 import Connections from './pages/Connections';
 import Hints from './pages/Hints';
 import PersonDetail from './pages/PersonDetail';
 import Persons from './pages/Persons';
+import MapPage from './pages/Map';
+import Timeline from './pages/Timeline';
+import TreeHealth from './pages/TreeHealth';
+import Trivia from './pages/Trivia';
+import { getItem, setItem } from './utils/indexedDB';
 
 function App() {
   const [persons, setPersons] = React.useState<IPersons>();
   const [rootPerson, setRootPerson] = React.useState<IPerson>();
   const [generations, setGenerations] = React.useState<number>();
   const [families, setFamilies] = React.useState<IFamilies>();
-  const [filename, setFilename] = React.useState<string>(localStorage.getItem('filename'));
-  const [arrayBuffer, setArrayBuffer] = React.useState<ArrayBuffer>(
-    new TextEncoder().encode(localStorage.getItem('arrayBuffer') || '').buffer
-  );
+  const [filename, setFilename] = React.useState<string | null>(null);
+  const [isLoading, setIsLoading] = React.useState<boolean>(true);
+  const [loadingStage, setLoadingStage] = React.useState<string>('');
 
-  const handleUpload = (filename: string, arrayBuffer: ArrayBuffer) => {
-    localStorage.setItem('filename', filename);
-    localStorage.setItem('arrayBuffer', new TextDecoder().decode(arrayBuffer));
+  const yieldToMain = () => new Promise(resolve => setTimeout(resolve, 0));
 
-    const promise = new Promise((resolve, reject) => {
-      const gedcom = readGedcom(arrayBuffer);
-      resolve(gedcom);
-    });
+  const parseAndSetData = useCallback(async (fname: string, buffer: ArrayBuffer) => {
+    setLoadingStage('Bestandsgegevens inlezen...');
+    await yieldToMain();
+    const gedcom = readGedcom(buffer);
 
-    promise.then(gedcom => {
-      const individualRecords = Array.from(gedcom.getIndividualRecord());
-      const persons = parsePersons(individualRecords);
-      console.log(persons);
+    setLoadingStage('Personen analyseren...');
+    await yieldToMain();
+    const individualRecords = Array.from(gedcom.getIndividualRecord());
+    const parsedPersons = parsePersons(individualRecords);
+    console.log(parsedPersons);
 
-      const familyRecords = Array.from(gedcom.getFamilyRecord());
-      const families = parseFamilies(familyRecords);
-      console.log(families);
-      setFamilies(families);
+    setLoadingStage('Gezinnen analyseren...');
+    await yieldToMain();
+    const familyRecords = Array.from(gedcom.getFamilyRecord());
+    const parsedFamilies = parseFamilies(familyRecords);
+    console.log(parsedFamilies);
+    setFamilies(parsedFamilies);
 
-      addRelationshipsToPersons(persons, families);
-      console.log(persons);
+    setLoadingStage('Relaties koppelen...');
+    await yieldToMain();
+    addRelationshipsToPersons(parsedPersons, parsedFamilies);
+    console.log(parsedPersons);
 
-      const leafs = persons.persons.filter(person => person.children.length === 0);
-      const leafGenerations = leafs.map(leaf => calculateGenerations(leaf));
-      const maxGenerations = Math.max(...leafGenerations.map(([person, generation]) => generation));
-      const personWithMaxGenerations = leafGenerations.find(([person, generation]) => generation === maxGenerations);
-      console.log(personWithMaxGenerations);
-      setGenerations(maxGenerations + 1);
+    setLoadingStage('Generaties berekenen...');
+    await yieldToMain();
+    const leafs = parsedPersons.persons.filter(person => person.children.length === 0);
+    const generationCache = new Map<string, [IPerson[], number]>();
+    const leafGenerations = leafs.map(leaf => calculateGenerations(leaf, generationCache));
+    const maxGenerations = Math.max(...leafGenerations.map(([person, generation]) => generation));
+    const personWithMaxGenerations = leafGenerations.find(([person, generation]) => generation === maxGenerations);
+    console.log(personWithMaxGenerations);
+    setGenerations(maxGenerations + 1);
 
+    setLoadingStage('Stamboom opbouwen...');
+    await yieldToMain();
+    if (personWithMaxGenerations && personWithMaxGenerations[0] && personWithMaxGenerations[0].length > 0) {
       setRootPerson(personWithMaxGenerations[0][0]);
-
-      for (const rootPerson of personWithMaxGenerations[0]) {
-        addGenerationToPerson(rootPerson, 0);
+      for (const rPerson of personWithMaxGenerations[0]) {
+        addGenerationToPerson(rPerson, 0);
       }
-      const personsWithGenerations = persons.persons.filter(person => person.generation !== null);
-      console.log('persons with generations', personsWithGenerations);
+    }
 
-      setPersons({ persons: persons.persons });
-      setFilename(filename);
-      setArrayBuffer(arrayBuffer);
-    });
+    setPersons({ persons: parsedPersons.persons });
+    setFilename(fname);
+  }, []);
 
+  const handleUpload = async (uploadedFilename: string, uploadedBuffer: ArrayBuffer) => {
+    try {
+      setIsLoading(true);
+      setLoadingStage('Bestand opslaan in database...');
+      await Promise.all([
+        setItem('filename', uploadedFilename),
+        setItem('arrayBuffer', uploadedBuffer)
+      ]);
+      await parseAndSetData(uploadedFilename, uploadedBuffer);
+    } catch (err) {
+      console.error('Failed to store or parse uploaded file', err);
+    } finally {
+      setIsLoading(false);
+      setLoadingStage('');
+    }
   };
 
   useEffect(() => {
-    if (filename && arrayBuffer.byteLength > 0) {
-      handleUpload(filename, arrayBuffer);
+    const loadFromDB = async () => {
+      try {
+        setLoadingStage('Bestand ophalen uit database...');
+        const storedFilename = await getItem('filename');
+        const storedBuffer = await getItem('arrayBuffer');
+        if (storedFilename && storedBuffer && storedBuffer.byteLength > 0) {
+          await parseAndSetData(storedFilename, storedBuffer);
+        }
+      } catch (err) {
+        console.error('Failed to load data from IndexedDB', err);
+      } finally {
+        setIsLoading(false);
+        setLoadingStage('');
+      }
+    };
+    loadFromDB();
+  }, [parseAndSetData]);
+
+  const getProgressPercentage = (stage: string) => {
+    switch (stage) {
+      case 'Bestand ophalen uit database...':
+      case 'Bestand opslaan in database...':
+        return 10;
+      case 'Bestandsgegevens inlezen...':
+        return 25;
+      case 'Personen analyseren...':
+        return 40;
+      case 'Gezinnen analyseren...':
+        return 55;
+      case 'Relaties koppelen...':
+        return 70;
+      case 'Generaties berekenen...':
+        return 85;
+      case 'Stamboom opbouwen...':
+        return 95;
+      default:
+        return 0;
     }
-  }, [arrayBuffer, filename]);
+  };
+
+  if (isLoading) {
+    const progress = getProgressPercentage(loadingStage);
+    return (
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', flexDirection: 'column', fontFamily: 'sans-serif', backgroundColor: '#fcfcfc' }}>
+        <div className="spinner" style={{ border: '4px solid rgba(0, 0, 0, 0.1)', width: '40px', height: '40px', borderRadius: '50%', borderLeftColor: '#2B4162', animation: 'spin 1s linear infinite' }} />
+        <p style={{ marginTop: '20px', color: '#2B4162', fontWeight: 600, fontSize: '18px' }}>{loadingStage || 'Gegevens laden...'}</p>
+        {progress > 0 && (
+          <div style={{ width: '200px', height: '6px', backgroundColor: '#e0e0e0', borderRadius: '3px', marginTop: '10px', overflow: 'hidden' }}>
+            <div style={{ width: `${progress}%`, height: '100%', backgroundColor: '#2B4162', transition: 'width 0.3s ease-in-out' }} />
+          </div>
+        )}
+        <style>{`
+          @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+          }
+        `}</style>
+      </div>
+    );
+  }
 
   return (
     <div className='App'>
@@ -84,8 +161,12 @@ function App() {
         <Routes>
           <Route path='/' element={<Home filename={filename} persons={persons} handleFileChange={handleUpload} />} />
           {persons && <Route path='/stamboom' element={<Tree persons={persons} rootPerson={rootPerson} generations={generations} families={families} />} />}
+          {persons && <Route path='/kaart' element={<MapPage persons={persons} />} />}
+          {persons && <Route path='/tijdreis' element={<Timeline persons={persons} />} />}
           {persons && <Route path='/statistieken' element={<Statistics persons={persons} />} />}
           {persons && <Route path='/connecties' element={<Connections persons={persons} />} />}
+          {persons && <Route path='/kwaliteit' element={<TreeHealth persons={persons} />} />}
+          {persons && <Route path='/trivia' element={<Trivia persons={persons} />} />}
           {persons && <Route path='/personen' element={<Persons persons={persons} />} />}
           {persons && <Route path='/personen/:id' element={<PersonDetail persons={persons} />} />}
           {persons && <Route path='/hints' element={<Hints persons={persons} />} />}
@@ -94,6 +175,7 @@ function App() {
       </BrowserRouter>
     </div>
   );
+}
 
   function parsePersons(individualRecords: any[]): IPersons {
     return {
@@ -123,7 +205,17 @@ function App() {
           mother: null,
           siblings: [],
           partners: [],
-          children: []
+          children: [],
+          occupation: null,
+          note: null,
+          burial: {
+            date: null,
+            place: null
+          },
+          christening: {
+            date: null,
+            place: null
+          }
         };
         for (const child of individualRecord.children) {
           switch (child.tag) {
@@ -134,6 +226,41 @@ function App() {
               break;
             case 'SEX':
               person.sex = child.value;
+              break;
+            case 'OCCU':
+              person.occupation = child.value || null;
+              break;
+            case 'NOTE':
+              person.note = child.value || null;
+              break;
+            case 'BURI':
+              child.children.forEach((burialChild: any) => {
+                switch (burialChild.tag) {
+                  case 'DATE':
+                    person.burial!.date = burialChild.value || null;
+                    break;
+                  case 'PLAC':
+                    person.burial!.place = burialChild.value || null;
+                    break;
+                  default:
+                    break;
+                }
+              });
+              break;
+            case 'CHR':
+            case 'BAPM':
+              child.children.forEach((chrChild: any) => {
+                switch (chrChild.tag) {
+                  case 'DATE':
+                    person.christening!.date = chrChild.value || null;
+                    break;
+                  case 'PLAC':
+                    person.christening!.place = chrChild.value || null;
+                    break;
+                  default:
+                    break;
+                }
+              });
               break;
             case 'BIRT':
               child.children.forEach((birthChild: any) => {
@@ -181,7 +308,7 @@ function App() {
                     break;
                   case 'PLAC':
                     personResidence.place = residenceChild.value || null;
-                    person.residence.push(personResidence);
+                    person.residence!.push(personResidence);
                     break;
                   default:
                     break;
@@ -232,29 +359,46 @@ function App() {
   }
 
   function addRelationshipsToPersons(persons: IPersons, families: IFamilies) {
+    const personMap = new Map<string, IPerson>();
+    persons.persons.forEach(person => {
+      if (person.pointer) {
+        personMap.set(person.pointer, person);
+      }
+    });
+
+    const familyMap = new Map<string, any>();
+    families.families.forEach(family => {
+      if (family.pointer) {
+        familyMap.set(family.pointer, family);
+      }
+    });
+
     persons.persons.forEach(person => {
       if (person.familyChild) {
-        const family = families.families.find(family => family.pointer === person.familyChild);
+        const family = familyMap.get(person.familyChild);
         if (family) {
-          person.father = persons.persons.find(person => person.pointer === family.husband) || null;
-          person.mother = persons.persons.find(person => person.pointer === family.wife) || null;
+          person.father = family.husband ? personMap.get(family.husband) || null : null;
+          person.mother = family.wife ? personMap.get(family.wife) || null : null;
           person.siblings = family.children
-            .filter(child => child !== person.pointer)
-            .map(child => persons.persons.find(person => person.pointer === child) || null);
+            .filter((child: string) => child !== person.pointer)
+            .map((child: string) => personMap.get(child) || null)
+            .filter((sibling: IPerson | null) => sibling !== null);
         }
       }
-      if (person.familyParent.length > 0) {
+      if (person.familyParent && person.familyParent.length > 0) {
         for (const familyPointer of person.familyParent) {
-          const family = families.families.find(family => family.pointer === familyPointer);
+          const family = familyMap.get(familyPointer);
           if (family) {
             const partners = [family.husband, family.wife]
-              .filter(pointer => pointer !== person.pointer)
-              .map(pointer => persons.persons.find(person => person.pointer === pointer) || null);
+              .filter(pointer => pointer && pointer !== person.pointer)
+              .map(pointer => personMap.get(pointer) || null)
+              .filter((partner: IPerson | null) => partner !== null) as IPerson[];
             if (partners.length > 0) {
               person.partners.push(...partners);
             }
             const children = family.children
-              .map(child => persons.persons.find(person => person.pointer === child) || null);
+              .map((child: string) => personMap.get(child) || null)
+              .filter((child: IPerson | null) => child !== null) as IPerson[];
             if (children.length > 0) {
               children.forEach(child => {
                 if (!person.children.some(existingChild => existingChild.pointer === child.pointer)) {
@@ -268,25 +412,38 @@ function App() {
     });
   }
 
-  function calculateGenerations(person: IPerson, generation: number = 0): [IPerson[], number] {
+  function calculateGenerations(
+    person: IPerson,
+    cache: Map<string, [IPerson[], number]> = new Map()
+  ): [IPerson[], number] {
+    if (cache.has(person.pointer)) {
+      return cache.get(person.pointer)!;
+    }
+
     if (!person.father && !person.mother) {
-      return [[person], generation];
+      const result: [IPerson[], number] = [[person], 0];
+      cache.set(person.pointer, result);
+      return result;
     }
 
-    const [fatherAncestors, fatherGeneration] = person.father
-      ? calculateGenerations(person.father, generation + 1)
-      : [[], 0];
-    const [motherAncestors, motherGeneration] = person.mother
-      ? calculateGenerations(person.mother, generation + 1)
-      : [[], 0];
+    const [fatherAncestors, fatherHeight] = person.father
+      ? calculateGenerations(person.father, cache)
+      : [[], -1];
+    const [motherAncestors, motherHeight] = person.mother
+      ? calculateGenerations(person.mother, cache)
+      : [[], -1];
 
-    if (fatherGeneration > motherGeneration) {
-      return [fatherAncestors, fatherGeneration];
-    } else if (motherGeneration > fatherGeneration) {
-      return [motherAncestors, motherGeneration];
+    let result: [IPerson[], number];
+    if (fatherHeight > motherHeight) {
+      result = [fatherAncestors, fatherHeight + 1];
+    } else if (motherHeight > fatherHeight) {
+      result = [motherAncestors, motherHeight + 1];
     } else {
-      return [[...fatherAncestors, ...motherAncestors], fatherGeneration];
+      result = [[...fatherAncestors, ...motherAncestors], fatherHeight + 1];
     }
+
+    cache.set(person.pointer, result);
+    return result;
   }
 
   function addGenerationToPerson(person: IPerson, generation: number, visited: Set<string> = new Set()) {
@@ -308,6 +465,5 @@ function App() {
     // if (person.father) addGenerationToPerson(person.father, generation - 1, visited);
     // if (person.mother) addGenerationToPerson(person.mother, generation - 1, visited);
   }
-}
 
 export default App;

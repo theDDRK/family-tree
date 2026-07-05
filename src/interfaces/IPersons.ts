@@ -22,6 +22,12 @@ export interface IPerson {
     siblings: IPerson[] | null;
     partners: IPerson[] | null;
     children: IPerson[] | null;
+    
+    // Professionalism additions
+    occupation: string | null;
+    note: string | null;
+    burial: IDatePlace | null;
+    christening: IDatePlace | null;
 }
 
 export interface IDatePlace {
