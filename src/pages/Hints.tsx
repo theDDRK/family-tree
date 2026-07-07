@@ -1,13 +1,10 @@
 import React from 'react';
 import { IPersons } from '../interfaces/IPersons';
 import HintsTable from '../components/HintsTable';
+import { getYearSafe } from '../utils/dateUtils';
 
 function Hints({ persons }: { persons: IPersons }) {
-    const getYearSafe = (dateStr: string | null | undefined): number => {
-        if (!dateStr) return NaN;
-        const match = dateStr.match(/\d{4}/);
-        return match ? parseInt(match[0], 10) : NaN;
-    };
+
 
     const hintsList = [
         { 

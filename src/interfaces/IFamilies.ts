@@ -1,3 +1,5 @@
+import { IDatePlace } from './IPersons';
+
 export interface IFamilies {
     families: IFamily[];
 }
@@ -11,4 +13,6 @@ export interface IFamily {
     husband: string | null;
     wife: string | null;
     children: string[] | null;
-}
+    marriage?: IDatePlace | null;
+    divorce?: IDatePlace | null;
+}

@@ -61,7 +61,7 @@ function Home({ filename, persons, handleFileChange }: { filename: string | null
                 </p>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: isUploaded ? '1fr 1fr' : '1fr', gap: '30px', alignItems: 'stretch' }}>
+            <div className={isUploaded ? "responsive-grid-half" : ""} style={{ display: isUploaded ? 'grid' : 'block', gap: '30px', alignItems: 'stretch' }}>
                 {/* Upload Card */}
                 <div className="card" style={{ 
                     display: 'flex', 

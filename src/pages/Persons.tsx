@@ -1,10 +1,13 @@
 import React, { useState, useMemo } from 'react';
-import { IPersons, IPerson } from '../interfaces/IPersons';
+import { IPersons } from '../interfaces/IPersons';
 import { Link } from 'react-router-dom';
+import { parseDateToNumber, formatDate } from '../utils/dateUtils';
 
 function Persons({ persons }: { persons: IPersons }) {
     const [searchQuery, setSearchQuery] = useState('');
     const [currentPage, setCurrentPage] = useState(1);
+    const [sortKey, setSortKey] = useState<'name' | 'sex' | 'birth' | 'death'>('name');
+    const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
     const itemsPerPage = 25;
 
     // Filter persons based on search query
@@ -16,22 +19,79 @@ function Persons({ persons }: { persons: IPersons }) {
         return persons.persons.filter(person => {
             const firstName = (person.firstName || '').toLowerCase();
             const lastName = (person.lastName || '').toLowerCase();
-            const birthYear = person.birth?.date ? person.birth.date.slice(-4) : '';
-            return firstName.includes(query) || lastName.includes(query) || birthYear.includes(query);
+            
+            // Format dates first to ensure we can search for human-readable terms too
+            const birthFormatted = (formatDate(person.birth?.date) || formatDate(person.christening?.date) || '').toLowerCase();
+            const deathFormatted = (formatDate(person.death?.date) || formatDate(person.burial?.date) || '').toLowerCase();
+            
+            return firstName.includes(query) || 
+                   lastName.includes(query) || 
+                   birthFormatted.includes(query) || 
+                   deathFormatted.includes(query);
         });
     }, [persons, searchQuery]);
+
+    // Sort persons
+    const sortedPersons = useMemo(() => {
+        const result = [...filteredPersons];
+        return result.sort((a, b) => {
+            let valA: any = '';
+            let valB: any = '';
+            
+            if (sortKey === 'name') {
+                valA = `${a.lastName || ''} ${a.firstName || ''}`.toLowerCase();
+                valB = `${b.lastName || ''} ${b.firstName || ''}`.toLowerCase();
+            } else if (sortKey === 'sex') {
+                valA = a.sex || '';
+                valB = b.sex || '';
+            } else if (sortKey === 'birth') {
+                const yearA = parseDateToNumber(a.birth?.date) ?? parseDateToNumber(a.christening?.date);
+                const yearB = parseDateToNumber(b.birth?.date) ?? parseDateToNumber(b.christening?.date);
+                
+                if (yearA === null) return sortDirection === 'asc' ? 1 : -1;
+                if (yearB === null) return sortDirection === 'asc' ? -1 : 1;
+                return sortDirection === 'asc' ? yearA - yearB : yearB - yearA;
+            } else if (sortKey === 'death') {
+                const yearA = parseDateToNumber(a.death?.date) ?? parseDateToNumber(a.burial?.date);
+                const yearB = parseDateToNumber(b.death?.date) ?? parseDateToNumber(b.burial?.date);
+                
+                if (yearA === null) return sortDirection === 'asc' ? 1 : -1;
+                if (yearB === null) return sortDirection === 'asc' ? -1 : 1;
+                return sortDirection === 'asc' ? yearA - yearB : yearB - yearA;
+            }
+            
+            if (valA < valB) return sortDirection === 'asc' ? -1 : 1;
+            if (valA > valB) return sortDirection === 'asc' ? 1 : -1;
+            return 0;
+        });
+    }, [filteredPersons, sortKey, sortDirection]);
 
     // Paginate results
     const paginatedPersons = useMemo(() => {
         const startIndex = (currentPage - 1) * itemsPerPage;
-        return filteredPersons.slice(startIndex, startIndex + itemsPerPage);
-    }, [filteredPersons, currentPage]);
+        return sortedPersons.slice(startIndex, startIndex + itemsPerPage);
+    }, [sortedPersons, currentPage]);
 
-    const totalPages = Math.ceil(filteredPersons.length / itemsPerPage);
+    const totalPages = Math.ceil(sortedPersons.length / itemsPerPage);
 
     const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         setSearchQuery(e.target.value);
         setCurrentPage(1); // Reset to first page on search
+    };
+
+    const handleSort = (key: 'name' | 'sex' | 'birth' | 'death') => {
+        if (sortKey === key) {
+            setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
+        } else {
+            setSortKey(key);
+            setSortDirection('asc');
+        }
+        setCurrentPage(1);
+    };
+
+    const renderSortIndicator = (key: 'name' | 'sex' | 'birth' | 'death') => {
+        if (sortKey !== key) return null;
+        return sortDirection === 'asc' ? ' ▲' : ' ▼';
     };
 
     return (
@@ -39,11 +99,11 @@ function Persons({ persons }: { persons: IPersons }) {
             <h1 className="page-title">Personenlijst</h1>
             <p className="page-subtitle">Blader door alle leden van je stamboom en bekijk hun details.</p>
 
-            {/* Search Input */}
-            <div style={{ marginBottom: '25px', display: 'flex', gap: '15px' }}>
+            {/* Search and Sort Toolbar */}
+            <div style={{ marginBottom: '25px', display: 'flex', gap: '15px', flexWrap: 'wrap', alignItems: 'center' }}>
                 <input
                     type="text"
-                    placeholder="Zoek op voornaam, achternaam of geboortejaar..."
+                    placeholder="Zoek op voornaam, achternaam of datum..."
                     value={searchQuery}
                     onChange={handleSearchChange}
                     style={{
@@ -56,26 +116,35 @@ function Persons({ persons }: { persons: IPersons }) {
                         outline: 'none',
                         boxShadow: 'var(--shadow-sm)',
                         transition: 'border-color 0.2s',
+                        fontFamily: 'inherit'
                     }}
                     onFocus={(e) => e.target.style.borderColor = 'var(--primary-color)'}
                     onBlur={(e) => e.target.style.borderColor = 'var(--border-color)'}
                 />
-                <div style={{ display: 'flex', alignItems: 'center', fontSize: '14px', color: 'var(--text-secondary)' }}>
-                    {filteredPersons.length} resultaten gevonden
+                <div style={{ fontSize: '14px', color: 'var(--text-secondary)', fontWeight: '600' }}>
+                    {sortedPersons.length} resultaten gevonden
                 </div>
             </div>
 
             {/* Table */}
-            {filteredPersons.length > 0 ? (
+            {sortedPersons.length > 0 ? (
                 <>
                     <div style={{ overflowX: 'auto' }}>
                         <table>
                             <thead>
                                 <tr>
-                                    <th>Naam</th>
-                                    <th>Geslacht</th>
-                                    <th>Geboorte</th>
-                                    <th>Overlijden</th>
+                                    <th onClick={() => handleSort('name')} style={{ cursor: 'pointer', userSelect: 'none', position: 'relative' }}>
+                                        Naam{renderSortIndicator('name')}
+                                    </th>
+                                    <th onClick={() => handleSort('sex')} style={{ cursor: 'pointer', userSelect: 'none' }}>
+                                        Geslacht{renderSortIndicator('sex')}
+                                    </th>
+                                    <th onClick={() => handleSort('birth')} style={{ cursor: 'pointer', userSelect: 'none' }}>
+                                        Geboorte{renderSortIndicator('birth')}
+                                    </th>
+                                    <th onClick={() => handleSort('death')} style={{ cursor: 'pointer', userSelect: 'none' }}>
+                                        Overlijden{renderSortIndicator('death')}
+                                    </th>
                                     <th>Kinderen</th>
                                 </tr>
                             </thead>
@@ -84,6 +153,9 @@ function Persons({ persons }: { persons: IPersons }) {
                                     const genderLabel = person.sex === 'M' ? 'Man' : person.sex === 'F' ? 'Vrouw' : 'Onbekend';
                                     const genderColor = person.sex === 'M' ? 'rgba(59, 130, 246, 0.08)' : person.sex === 'F' ? 'rgba(236, 72, 153, 0.08)' : '#f1f5f9';
                                     const textColor = person.sex === 'M' ? 'var(--male-color)' : person.sex === 'F' ? 'var(--female-color)' : 'var(--text-secondary)';
+
+                                    const birthVal = formatDate(person.birth?.date) || formatDate(person.christening?.date) || '-';
+                                    const deathVal = formatDate(person.death?.date) || formatDate(person.burial?.date) || '-';
 
                                     return (
                                         <tr key={person.pointer}>
@@ -105,11 +177,11 @@ function Persons({ persons }: { persons: IPersons }) {
                                                     {genderLabel}
                                                 </span>
                                             </td>
-                                            <td>{person.birth?.date || '-'}</td>
-                                            <td>{person.death?.date || '-'}</td>
+                                            <td>{birthVal}</td>
+                                            <td>{deathVal}</td>
                                             <td>
                                                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
-                                                    {person.children.map(child => (
+                                                    {(person.children || []).map(child => (
                                                         <Link to={`/personen/${child.pointer}`} className={`label ${child.sex}`} key={person.pointer + child.pointer}>
                                                             {child.firstName}
                                                         </Link>
@@ -137,7 +209,8 @@ function Persons({ persons }: { persons: IPersons }) {
                                     color: currentPage === 1 ? '#94a3b8' : 'var(--text-primary)',
                                     cursor: currentPage === 1 ? 'not-allowed' : 'pointer',
                                     fontWeight: '600',
-                                    fontSize: '13px'
+                                    fontSize: '13px',
+                                    fontFamily: 'inherit'
                                 }}
                             >
                                 Vorige
@@ -156,7 +229,8 @@ function Persons({ persons }: { persons: IPersons }) {
                                     color: currentPage === totalPages ? '#94a3b8' : 'var(--text-primary)',
                                     cursor: currentPage === totalPages ? 'not-allowed' : 'pointer',
                                     fontWeight: '600',
-                                    fontSize: '13px'
+                                    fontSize: '13px',
+                                    fontFamily: 'inherit'
                                 }}
                             >
                                 Volgende

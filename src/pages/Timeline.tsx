@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { IPerson, IPersons } from '../interfaces/IPersons';
+import { getYearSafe } from '../utils/dateUtils';
 
 interface IHistoryEvent {
     year: number;
@@ -131,11 +132,7 @@ const HISTORICAL_EVENTS: IHistoryEvent[] = [
     { year: 2022, title: 'Russische invasie van Oekraïne', description: 'Rusland valt Oekraïne binnen op 24 februari 2022; de grootste oorlog in Europa sedert WO2.', category: 'Oorlog', icon: '🇺🇦' },
 ].sort((a, b) => a.year - b.year);
 
-const getYearSafe = (dateStr: string | null | undefined): number => {
-    if (!dateStr) return NaN;
-    const match = dateStr.match(/\d{4}/);
-    return match ? parseInt(match[0], 10) : NaN;
-};
+
 
 function Timeline({ persons }: { persons: IPersons }) {
     const yearsRange = useMemo(() => {
@@ -308,7 +305,7 @@ function Timeline({ persons }: { persons: IPersons }) {
             </div>
 
             {/* Main two-column layout */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: '30px', alignItems: 'start' }}>
+            <div className="responsive-grid-sidebar" style={{ alignItems: 'start' }}>
 
                 {/* LEFT: Historical Timeline */}
                 <div style={{ position: 'relative' }}>

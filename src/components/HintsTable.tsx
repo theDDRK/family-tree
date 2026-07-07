@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { IPerson } from '../interfaces/IPersons';
 import { Link } from 'react-router-dom';
+import { getYearSafe } from '../utils/dateUtils';
 
 function HintsTable({ id, title, persons }: { id: string, title: string, persons: IPerson[] }) {
     const [showBody, setShowBody] = useState(false);
@@ -8,9 +9,8 @@ function HintsTable({ id, title, persons }: { id: string, title: string, persons
     const toggleBody = () => setShowBody(!showBody);
 
     const getYear = (dateStr: string | null | undefined): string => {
-        if (!dateStr) return '';
-        const match = dateStr.match(/\d{4}/);
-        return match ? `(${match[0]})` : '';
+        const year = getYearSafe(dateStr);
+        return isNaN(year) ? '' : `(${year < 0 ? Math.abs(year) + ' v.Chr.' : year})`;
     };
 
     return (

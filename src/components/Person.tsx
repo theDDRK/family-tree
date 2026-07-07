@@ -19,6 +19,9 @@ function Person({ person, position, width, height }: { person: IPerson, position
     if (date.includes('BET')) {
       formattedDate = formattedDate.replace('BET', '><');
     }
+    
+    // Replace BC / BCE with v.Chr.
+    formattedDate = formattedDate.replace(/\b(?:BC|B\.C\.|BCE|B\.C\.E\.)\b/gi, 'v.Chr.');
 
     return formattedDate;
   };

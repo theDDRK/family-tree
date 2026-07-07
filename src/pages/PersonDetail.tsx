@@ -1,11 +1,39 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { IPerson, IPersons } from '../interfaces/IPersons';
+import { getYearSafe, formatDate } from '../utils/dateUtils';
+
+const HISTORICAL_EVENTS: { year: number; title: string; icon: string; desc: string }[] = [
+  { year: 1568, title: 'Begin Tachtigjarige Oorlog', icon: '⚔️', desc: 'Nederland begint zijn onafhankelijkheidsstrijd tegen Spanje.' },
+  { year: 1648, title: 'Vrede van Münster', icon: '🕊️', desc: 'Officieel einde van de Tachtigjarige Oorlog. Onafhankelijkheid Nederland erkend.' },
+  { year: 1672, title: 'Rampjaar', icon: '💀', desc: 'Invasie van Engeland, Frankrijk en Duitsland. Moord op De Witt gebroeders.' },
+  { year: 1795, title: 'Bataafse Republiek', icon: '🏛️', desc: 'Nederlandse revolutie; Franse invloed introduceert burgerlijk bestuur.' },
+  { year: 1813, title: 'Herstel Onafhankelijkheid', icon: '🦁', desc: 'Nederland herstelt zijn onafhankelijkheid na de Napoleontische periode.' },
+  { year: 1830, title: 'Belgische Revolutie', icon: '🇧🇪', desc: 'België scheidt zich af van het Koninkrijk der Nederlanden.' },
+  { year: 1848, title: 'Grondwetsherziening', icon: '📜', desc: 'Thorbecke hervormt de grondwet; Nederland wordt constitutionele monarchie.' },
+  { year: 1863, title: 'Afschaffing Slavernij', icon: '✊', desc: 'Nederland schaft de slavernij af in zijn kolonies.' },
+  { year: 1914, title: 'Eerste Wereldoorlog', icon: '⚔️', desc: 'Begin van WO1. Nederland blijft neutraal maar voelt economische gevolgen.' },
+  { year: 1917, title: 'Algemeen Mannenstemrecht', icon: '🗳️', desc: 'Nederlandse mannen krijgen algemeen stemrecht.' },
+  { year: 1918, title: 'Einde Eerste Wereldoorlog', icon: '🕊️', desc: 'WO1 eindigt. Nederland heeft neutraal standpunt weten te handhaven.' },
+  { year: 1919, title: 'Vrouwenkiesrecht', icon: '♀️', desc: 'Nederlandse vrouwen krijgen het actief kiesrecht.' },
+  { year: 1929, title: 'Grote Depressie', icon: '📉', desc: 'De beurskrach van Wall Street leidt tot wereldwijde economische crisis.' },
+  { year: 1940, title: 'Duits Bombardement', icon: '💣', desc: 'Rotterdam wordt gebombardeerd. Nederland capituleert voor Duitsland.' },
+  { year: 1944, title: 'Operatie Market Garden', icon: '✈️', desc: 'Geallieerde luchtlandingsoperatie in Arnhem. Deels mislukt.' },
+  { year: 1944, title: 'Hongerwinter', icon: '❄️', desc: 'Ernstige voedseltekorten in bezet Nederland kosten duizenden levens.' },
+  { year: 1945, title: 'Bevrijding', icon: '🎉', desc: 'Nederland bevrijd van de nazi-bezetting. Einde van WO2 in Europa.' },
+  { year: 1953, title: 'Watersnoodramp', icon: '🌊', desc: 'Grote overstroming in Zeeland en Zuidholland, 1800+ slachtoffers.' },
+  { year: 1969, title: 'Maanlanding', icon: '🚀', desc: 'Apollo 11: eerste mensen op de maan (Neil Armstrong en Buzz Aldrin).' },
+  { year: 1975, title: 'Onafhankelijkheid Suriname', icon: '🌿', desc: 'Suriname wordt onafhankelijk van Nederland.' },
+  { year: 1992, title: 'Verdrag van Maastricht', icon: '🇪🇺', desc: 'Grondslag van de Europese Unie ondertekend in Maastricht.' },
+  { year: 2002, title: 'Invoering Euro', icon: '💶', desc: 'De gulden wordt vervangen door de euro als nationale munteenheid.' },
+  { year: 2020, title: 'COVID-19 Pandemie', icon: '🦠', desc: 'Wereldwijde pandemie leidt tot ongekende maatschappelijke beperkingen.' },
+];
 
 function PersonDetail({ persons }: { persons: IPersons }) {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
     const person = persons.persons.find(p => p.pointer === id) as IPerson;
+    const [showHistoricalContext, setShowHistoricalContext] = useState(false);
 
     const goBack = () => {
         if (window.history.length > 2) {
@@ -15,18 +43,15 @@ function PersonDetail({ persons }: { persons: IPersons }) {
         }
     };
 
-    const getYearSafe = (dateStr: string | null | undefined): number => {
-        if (!dateStr) return NaN;
-        const match = dateStr.match(/\d{4}/);
-        return match ? parseInt(match[0], 10) : NaN;
-    };
+
 
     const birthYear = person ? (getYearSafe(person.birth?.date) || getYearSafe(person.christening?.date)) : NaN;
+    const deathYear = person ? (getYearSafe(person.death?.date) || getYearSafe(person.burial?.date)) : NaN;
 
     // Compute Life Events Timeline
     const timelineEvents = useMemo(() => {
         if (!person) return [];
-        const events: { year: number; dateStr: string; title: string; desc: string; icon: string }[] = [];
+        const events: { year: number; dateStr: string; title: string; desc: string; icon: string; isHistorical?: boolean }[] = [];
 
         // 1. Birth
         if (person.birth?.date) {
@@ -141,8 +166,25 @@ function PersonDetail({ persons }: { persons: IPersons }) {
             });
         }
 
+        // Add historical events within the person's lifespan
+        if (showHistoricalContext && !isNaN(birthYear)) {
+            const endYear = !isNaN(deathYear) ? deathYear : new Date().getFullYear();
+            HISTORICAL_EVENTS.forEach(hist => {
+                if (hist.year >= birthYear && hist.year <= endYear) {
+                    events.push({
+                        year: hist.year,
+                        dateStr: String(hist.year),
+                        title: hist.title,
+                        desc: hist.desc,
+                        icon: hist.icon,
+                        isHistorical: true,
+                    });
+                }
+            });
+        }
+
         return events.sort((a, b) => a.year - b.year);
-    }, [person, birthYear]);
+    }, [person, birthYear, deathYear, showHistoricalContext]);
 
     if (!person) {
         return (
@@ -278,29 +320,49 @@ function PersonDetail({ persons }: { persons: IPersons }) {
                             <div>
                                 <span style={{ fontSize: '11px', color: 'var(--text-secondary)', display: 'block', marginBottom: '2px', textTransform: 'uppercase', fontWeight: '700', letterSpacing: '0.5px' }}>Geboorte</span>
                                 <span style={{ fontSize: '14px', fontWeight: '500' }}>
-                                    {person.birth?.date || '-'} {person.birth?.place ? `(${person.birth.place})` : ''}
+                                    {formatDate(person.birth?.date) || '-'} {person.birth?.place ? `(${person.birth.place})` : ''}
                                 </span>
+                                {person.birth?.sources && person.birth.sources.length > 0 && (
+                                    <div style={{ fontSize: '11px', color: '#6366f1', fontStyle: 'italic', marginTop: '2px' }}>
+                                        📚 Bron: {person.birth.sources.join(', ')}
+                                    </div>
+                                )}
                             </div>
                             {person.christening?.date && (
                                 <div>
                                     <span style={{ fontSize: '11px', color: 'var(--text-secondary)', display: 'block', marginBottom: '2px', textTransform: 'uppercase', fontWeight: '700', letterSpacing: '0.5px' }}>Doop</span>
                                     <span style={{ fontSize: '14px', fontWeight: '500' }}>
-                                        {person.christening.date} {person.christening.place ? `(${person.christening.place})` : ''}
+                                        {formatDate(person.christening.date)} {person.christening.place ? `(${person.christening.place})` : ''}
                                     </span>
+                                    {person.christening?.sources && person.christening.sources.length > 0 && (
+                                        <div style={{ fontSize: '11px', color: '#6366f1', fontStyle: 'italic', marginTop: '2px' }}>
+                                            📚 Bron: {person.christening.sources.join(', ')}
+                                        </div>
+                                    )}
                                 </div>
                             )}
                             <div>
                                 <span style={{ fontSize: '11px', color: 'var(--text-secondary)', display: 'block', marginBottom: '2px', textTransform: 'uppercase', fontWeight: '700', letterSpacing: '0.5px' }}>Overlijden</span>
                                 <span style={{ fontSize: '14px', fontWeight: '500' }}>
-                                    {person.death?.date || '-'} {person.death?.place ? `(${person.death.place})` : ''}
+                                    {formatDate(person.death?.date) || '-'} {person.death?.place ? `(${person.death.place})` : ''}
                                 </span>
+                                {person.death?.sources && person.death.sources.length > 0 && (
+                                    <div style={{ fontSize: '11px', color: '#6366f1', fontStyle: 'italic', marginTop: '2px' }}>
+                                        📚 Bron: {person.death.sources.join(', ')}
+                                    </div>
+                                )}
                             </div>
                             {person.burial?.date && (
                                 <div>
                                     <span style={{ fontSize: '11px', color: 'var(--text-secondary)', display: 'block', marginBottom: '2px', textTransform: 'uppercase', fontWeight: '700', letterSpacing: '0.5px' }}>Begrafenis</span>
                                     <span style={{ fontSize: '14px', fontWeight: '500' }}>
-                                        {person.burial.date} {person.burial.place ? `(${person.burial.place})` : ''}
+                                        {formatDate(person.burial.date)} {person.burial.place ? `(${person.burial.place})` : ''}
                                     </span>
+                                    {person.burial?.sources && person.burial.sources.length > 0 && (
+                                        <div style={{ fontSize: '11px', color: '#6366f1', fontStyle: 'italic', marginTop: '2px' }}>
+                                            📚 Bron: {person.burial.sources.join(', ')}
+                                        </div>
+                                    )}
                                 </div>
                             )}
                         </div>
@@ -328,24 +390,60 @@ function PersonDetail({ persons }: { persons: IPersons }) {
 
                 {/* Column 2: Life Timeline */}
                 <div className="card" style={{ padding: '30px' }}>
-                    <h3 style={{ margin: '0 0 20px 0', fontWeight: '800', borderBottom: '1px solid var(--border-color)', paddingBottom: '10px', fontSize: '16px' }}>
-                        Levenslijn
-                    </h3>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid var(--border-color)', paddingBottom: '10px', marginBottom: '20px' }}>
+                        <h3 style={{ margin: 0, fontWeight: '800', fontSize: '16px' }}>
+                            Levenslijn
+                        </h3>
+                        <button
+                            onClick={() => setShowHistoricalContext(prev => !prev)}
+                            title={showHistoricalContext ? 'Historische context verbergen' : 'Historische context tonen'}
+                            style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '5px',
+                                padding: '4px 12px',
+                                borderRadius: '20px',
+                                border: `1px solid ${showHistoricalContext ? '#f59e0b' : 'var(--border-color)'}`,
+                                backgroundColor: showHistoricalContext ? 'rgba(245, 158, 11, 0.12)' : 'transparent',
+                                color: showHistoricalContext ? '#b45309' : 'var(--text-secondary)',
+                                fontSize: '12px',
+                                fontWeight: '700',
+                                cursor: 'pointer',
+                                fontFamily: 'inherit',
+                                transition: 'all 0.2s',
+                            }}
+                        >
+                            🏛️ {showHistoricalContext ? 'Context aan' : 'Context uit'}
+                        </button>
+                    </div>
                     
                     {timelineEvents.length > 0 ? (
                         <div style={{ position: 'relative', paddingLeft: '20px', borderLeft: '2px solid var(--border-color)', margin: '10px 0 10px 5px' }}>
                             {timelineEvents.map((event, idx) => (
-                                <div key={idx} style={{ marginBottom: '25px', position: 'relative' }}>
+                                <div
+                                    key={idx}
+                                    style={{
+                                        marginBottom: '25px',
+                                        position: 'relative',
+                                        ...(event.isHistorical ? {
+                                            backgroundColor: 'rgba(245, 158, 11, 0.08)',
+                                            borderRadius: '8px',
+                                            padding: '8px 10px 8px 10px',
+                                            borderLeft: '3px solid #f59e0b',
+                                            marginLeft: '4px',
+                                        } : {})
+                                    }}
+                                >
                                     {/* Timeline dot */}
-                                    <div style={{ 
-                                        position: 'absolute', 
-                                        left: '-31px', 
-                                        top: '2px', 
-                                        width: '20px', 
-                                        height: '20px', 
-                                        borderRadius: '50%', 
-                                        backgroundColor: 'white', 
-                                        border: '2px solid var(--primary-color)',
+                                    <div style={{
+                                        position: 'absolute',
+                                        left: event.isHistorical ? '-35px' : '-31px',
+                                        top: event.isHistorical ? '10px' : '2px',
+                                        width: '20px',
+                                        height: '20px',
+                                        borderRadius: '50%',
+                                        backgroundColor: event.isHistorical ? 'rgba(245, 158, 11, 0.12)' : 'white',
+                                        border: event.isHistorical ? '2px solid #f59e0b' : '2px solid var(--primary-color)',
                                         display: 'flex',
                                         alignItems: 'center',
                                         justifyContent: 'center',
@@ -354,15 +452,22 @@ function PersonDetail({ persons }: { persons: IPersons }) {
                                     }}>
                                         {event.icon}
                                     </div>
-                                    
+
                                     <div>
                                         <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', marginBottom: '2px' }}>
-                                            <span style={{ fontWeight: '800', fontSize: '14px', color: 'var(--primary-color)' }}>
+                                            <span style={{ fontWeight: '800', fontSize: '14px', color: event.isHistorical ? '#b45309' : 'var(--primary-color)' }}>
                                                 {!isNaN(event.year) && event.year !== 9999 ? event.year : 'Datum onbekend'}
                                             </span>
-                                            <span style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: '600' }}>
-                                                {event.dateStr}
-                                            </span>
+                                            {!event.isHistorical && (
+                                                <span style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: '600' }}>
+                                                    {event.dateStr}
+                                                </span>
+                                            )}
+                                            {event.isHistorical && (
+                                                <span style={{ fontSize: '10px', color: '#b45309', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.4px', opacity: 0.8 }}>
+                                                    Historisch
+                                                </span>
+                                            )}
                                         </div>
                                         <h4 style={{ margin: '0 0 4px 0', fontWeight: '700', fontSize: '14px', color: 'var(--text-primary)' }}>
                                             {event.title}
@@ -430,31 +535,58 @@ function PersonDetail({ persons }: { persons: IPersons }) {
                             <div>
                                 <span style={{ fontSize: '11px', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px', textTransform: 'uppercase', fontWeight: '700', letterSpacing: '0.5px' }}>Partners & Kinderen</span>
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-                                    {person.partners.map((partner, index) => (
-                                        <div key={partner.pointer} style={{ backgroundColor: '#f8fafc', padding: '12px', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
-                                            <div style={{ marginBottom: '8px' }}>
-                                                <span style={{ fontSize: '10px', fontWeight: '700', color: 'var(--text-secondary)', textTransform: 'uppercase', display: 'block', marginBottom: '4px' }}>Partner {index + 1}</span>
-                                                <Link to={`/personen/${partner.pointer}`} className={`label ${partner.sex}`} style={{ textDecoration: 'none', margin: '0' }}>
-                                                    💍 {partner.firstName} {partner.lastName} {partner.birth?.date ? `(${partner.birth.date.slice(-4)})` : ''}
-                                                </Link>
-                                            </div>
-                                            
-                                            <div>
-                                                <span style={{ fontSize: '10px', fontWeight: '700', color: 'var(--text-secondary)', textTransform: 'uppercase', display: 'block', marginBottom: '6px', paddingLeft: '4px' }}>Kinderen</span>
-                                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-                                                    {partner.children && partner.children.length > 0 ? (
-                                                        partner.children.map(child => (
-                                                            <Link to={`/personen/${child.pointer}`} className={`label ${child.sex}`} key={child.pointer} style={{ textDecoration: 'none' }}>
-                                                                👶 {child.firstName} {child.birth?.date ? `(${child.birth.date.slice(-4)})` : ''}
-                                                            </Link>
-                                                        ))
-                                                    ) : (
-                                                        <span style={{ fontSize: '12px', color: 'var(--text-secondary)', paddingLeft: '4px' }}>Geen kinderen</span>
+                                    {person.partners.map((partner, index) => {
+                                        const marriageInfo = person.marriages?.find(m => m.partnerPointer === partner.pointer);
+                                        return (
+                                            <div key={partner.pointer} style={{ backgroundColor: '#f8fafc', padding: '12px', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
+                                                <div style={{ marginBottom: '8px' }}>
+                                                    <span style={{ fontSize: '10px', fontWeight: '700', color: 'var(--text-secondary)', textTransform: 'uppercase', display: 'block', marginBottom: '4px' }}>Partner {index + 1}</span>
+                                                    <Link to={`/personen/${partner.pointer}`} className={`label ${partner.sex}`} style={{ textDecoration: 'none', margin: '0', display: 'inline-block' }}>
+                                                        💍 {partner.firstName} {partner.lastName} {partner.birth?.date ? `(${partner.birth.date.slice(-4)})` : ''}
+                                                    </Link>
+                                                    {marriageInfo && (
+                                                        <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '4px', paddingLeft: '4px', lineHeight: '1.4' }}>
+                                                            {marriageInfo.marriage && (
+                                                                <div>
+                                                                    <strong>Huwelijk:</strong> {formatDate(marriageInfo.marriage.date)} {marriageInfo.marriage.place ? `te ${marriageInfo.marriage.place}` : ''}
+                                                                    {marriageInfo.marriage.sources && marriageInfo.marriage.sources.length > 0 && (
+                                                                        <span style={{ fontSize: '10px', color: '#6366f1', fontStyle: 'italic', marginLeft: '6px' }}>
+                                                                            (Bron: {marriageInfo.marriage.sources.join(', ')})
+                                                                        </span>
+                                                                    )}
+                                                                </div>
+                                                            )}
+                                                            {marriageInfo.divorce && (
+                                                                <div>
+                                                                    <strong>Scheiding:</strong> {formatDate(marriageInfo.divorce.date)} {marriageInfo.divorce.place ? `te ${marriageInfo.divorce.place}` : ''}
+                                                                    {marriageInfo.divorce.sources && marriageInfo.divorce.sources.length > 0 && (
+                                                                        <span style={{ fontSize: '10px', color: '#6366f1', fontStyle: 'italic', marginLeft: '6px' }}>
+                                                                            (Bron: {marriageInfo.divorce.sources.join(', ')})
+                                                                        </span>
+                                                                    )}
+                                                                </div>
+                                                            )}
+                                                        </div>
                                                     )}
                                                 </div>
+                                                
+                                                <div>
+                                                    <span style={{ fontSize: '10px', fontWeight: '700', color: 'var(--text-secondary)', textTransform: 'uppercase', display: 'block', marginBottom: '6px', paddingLeft: '4px' }}>Kinderen</span>
+                                                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                                                        {partner.children && partner.children.length > 0 ? (
+                                                            partner.children.map(child => (
+                                                                <Link to={`/personen/${child.pointer}`} className={`label ${child.sex}`} key={child.pointer} style={{ textDecoration: 'none' }}>
+                                                                    👶 {child.firstName} {child.birth?.date ? `(${child.birth.date.slice(-4)})` : ''}
+                                                                </Link>
+                                                            ))
+                                                        ) : (
+                                                            <span style={{ fontSize: '12px', color: 'var(--text-secondary)', paddingLeft: '4px' }}>Geen kinderen</span>
+                                                        )}
+                                                    </div>
+                                                </div>
                                             </div>
-                                        </div>
-                                    ))}
+                                        );
+                                    })}
                                 </div>
                             </div>
                         )}

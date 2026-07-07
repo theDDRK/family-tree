@@ -1,16 +1,13 @@
 import React, { useState } from 'react';
-import { LineChart, CartesianGrid, XAxis, YAxis, Tooltip, Legend, Line, BarChart, Bar, PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
+import { LineChart, CartesianGrid, XAxis, YAxis, Tooltip, Legend, Line, BarChart, Bar, PieChart, Pie, Cell, ResponsiveContainer, Brush } from 'recharts';
 import { IPersons } from '../interfaces/IPersons';
 import { Link } from 'react-router-dom';
 import BirthsPerYear from '../components/BirthsPerYear';
+import { getYearSafe, formatDate } from '../utils/dateUtils';
 
 const months = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
 
-const getYearSafe = (dateStr: string | null | undefined): number => {
-    if (!dateStr) return NaN;
-    const match = dateStr.match(/\d{4}/);
-    return match ? parseInt(match[0], 10) : NaN;
-};
+
 
 function getBirthdateMonths(persons: IPersons) {
     const amountPerMonth = months.map(month => {
@@ -59,18 +56,19 @@ function getBirthdaysPerDay(persons: IPersons) {
 
 function getDeathYears(persons: IPersons) {
     const deathCounts = persons.persons.reduce((acc, person) => {
-        if (!person.death?.date) return acc;
-        const year = person.death.date?.slice(-4);
-        if (year && /^\d{4}$/.test(year)) {
-            acc[year] = (acc[year] || 0) + 1;
+        const yearVal = getYearSafe(person.death?.date) || getYearSafe(person.burial?.date);
+        if (!isNaN(yearVal)) {
+            acc[yearVal] = (acc[yearVal] || 0) + 1;
         }
         return acc;
-    }, {} as Record<string, number>);
+    }, {} as Record<number, number>);
 
     return Object.keys(deathCounts)
-        .sort()
+        .map(Number)
+        .sort((a, b) => a - b)
         .map(year => ({
-            jaar: year,
+            jaar: year < 0 ? `${Math.abs(year)} v.Chr.` : `${year}`,
+            rawYear: year,
             aantal: deathCounts[year],
         }));
 }
@@ -91,6 +89,7 @@ function getDeathMonths(persons: IPersons) {
 
     return amountPerMonth;
 }
+
 
 // Compute Lifespan distribution ranges
 function getLifespanDistribution(persons: IPersons) {
@@ -215,12 +214,15 @@ function Statistics({ persons }: { persons: IPersons }) {
     const deathMonths = getDeathMonths(persons);
     const lifespanDist = getLifespanDistribution(persons);
     
-    const [deathSelectedYear, setDeathSelectedYear] = useState<string | null>(null);
+    const [deathSelectedYear, setDeathSelectedYear] = useState<number | null>(null);
     const [selectedBirthday, setSelectedBirthday] = useState<string | null>(null);
     const [selectedAgeRange, setSelectedAgeRange] = useState<string | null>(null);
 
-    const selectedDeathYear = deathSelectedYear
-        ? persons.persons.filter(person => person.death?.date?.slice(-4) === deathSelectedYear)
+    const selectedDeathYear = deathSelectedYear !== null
+        ? persons.persons.filter(person => {
+            const y = getYearSafe(person.death?.date) || getYearSafe(person.burial?.date);
+            return y === deathSelectedYear;
+        })
         : [];
 
     return (
@@ -240,7 +242,7 @@ function Statistics({ persons }: { persons: IPersons }) {
                     Klik op een balk in de grafiek om in te zoomen op de individuele jaren en personen binnen dat bereik.
                 </span>
                 
-                <div style={{ display: 'grid', gridTemplateColumns: selectedAgeRange ? '1fr 340px' : '1fr', gap: '30px', transition: 'all 0.3s' }}>
+                <div className={selectedAgeRange ? "responsive-grid-sidebar" : ""} style={{ display: selectedAgeRange ? 'grid' : 'block', transition: 'all 0.3s' }}>
                     <div style={{ width: '100%', height: '320px' }}>
                         <ResponsiveContainer width="100%" height="100%">
                             <BarChart data={lifespanDist} onClick={(event: any) => event && setSelectedAgeRange(event.activeLabel)}>
@@ -254,7 +256,7 @@ function Statistics({ persons }: { persons: IPersons }) {
                     </div>
 
                     {selectedAgeRange && (
-                        <div style={{ borderLeft: '1px solid var(--border-color)', paddingLeft: '30px', maxHeight: '320px', overflowY: 'auto' }}>
+                        <div className="zoom-side-panel">
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
                                 <h4 style={{ margin: 0, fontWeight: '800', fontSize: '15px' }}>Details: {selectedAgeRange}</h4>
                                 <button 
@@ -313,7 +315,7 @@ function Statistics({ persons }: { persons: IPersons }) {
             </div>
 
             {/* Grid Layout for Month Births / Verjaardagen */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(450px, 1fr))', gap: '30px', marginBottom: '35px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '30px', marginBottom: '35px' }}>
                 {/* Birth Month */}
                 <div className="card" style={{ padding: '30px' }}>
                     <h3 style={{ margin: '0 0 4px 0', fontWeight: '800' }}>Geboortemaanden</h3>
@@ -360,7 +362,7 @@ function Statistics({ persons }: { persons: IPersons }) {
                     Klik op een balk in de grafiek om de personen te bekijken die op die dag jarig zijn.
                 </span>
                 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 300px', gap: '30px', flexWrap: 'wrap' }}>
+                <div className="responsive-grid-sidebar" style={{ alignItems: 'start' }}>
                     <div style={{ width: '100%', height: '320px' }}>
                         <ResponsiveContainer width="100%" height="100%">
                             <BarChart data={getBirthdaysPerDay(persons)} onClick={(event: any) => event && setSelectedBirthday(event.activeLabel)}>
@@ -373,7 +375,7 @@ function Statistics({ persons }: { persons: IPersons }) {
                         </ResponsiveContainer>
                     </div>
                     
-                    <div style={{ borderLeft: '1px solid var(--border-color)', paddingLeft: '30px', maxHeight: '320px', overflowY: 'auto' }}>
+                    <div className="zoom-side-panel">
                         {selectedBirthday ? (
                             <div>
                                 <h4 style={{ margin: '0 0 12px 0', fontWeight: '800', fontSize: '15px' }}>Jarigen op {selectedBirthday}</h4>
@@ -386,7 +388,9 @@ function Statistics({ persons }: { persons: IPersons }) {
                                                     onMouseEnter={e => (e.currentTarget.style.color = 'var(--primary-color)')}
                                                     onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-primary)')}
                                                 >{p.firstName || ''} {p.lastName || ''}</Link>
-                                                <span style={{ color: 'var(--text-secondary)' }}>{p.birth?.date?.slice(-4)}</span>
+                                                <span style={{ color: 'var(--text-secondary)' }}>
+                                                    {getYearSafe(p.birth?.date) < 0 ? `${Math.abs(getYearSafe(p.birth?.date))} v.Chr.` : getYearSafe(p.birth?.date)}
+                                                </span>
                                             </div>
                                         ))}
                                 </div>
@@ -407,23 +411,26 @@ function Statistics({ persons }: { persons: IPersons }) {
                     Klik op de grafieklijn om de personen te tonen die in dat specifieke jaar zijn overleden.
                 </span>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 300px', gap: '30px', flexWrap: 'wrap' }}>
+                <div className="responsive-grid-sidebar" style={{ alignItems: 'start' }}>
                     <div style={{ width: '100%', height: '320px' }}>
                         <ResponsiveContainer width="100%" height="100%">
-                            <LineChart data={deathYears} onClick={(event: any) => event && setDeathSelectedYear(event.activeLabel)}>
+                            <LineChart data={deathYears} onClick={(event: any) => event && event.activePayload && setDeathSelectedYear(event.activePayload[0].payload.rawYear)}>
                                 <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
                                 <XAxis dataKey="jaar" stroke="#94a3b8" fontSize={11} tickLine={false} />
                                 <YAxis stroke="#94a3b8" fontSize={11} tickLine={false} />
                                 <Tooltip />
                                 <Line type="monotone" dataKey="aantal" stroke="var(--female-color)" strokeWidth={2} dot={{ r: 3, fill: 'var(--female-color)' }} activeDot={{ r: 6 }} cursor="pointer" />
+                                <Brush dataKey="jaar" height={30} stroke="var(--female-color)" fill="#f8fafc" />
                             </LineChart>
                         </ResponsiveContainer>
                     </div>
 
-                    <div style={{ borderLeft: '1px solid var(--border-color)', paddingLeft: '30px', maxHeight: '320px', overflowY: 'auto' }}>
-                        {deathSelectedYear ? (
+                    <div className="zoom-side-panel">
+                        {deathSelectedYear !== null ? (
                             <div>
-                                <h4 style={{ margin: '0 0 12px 0', fontWeight: '800', fontSize: '15px' }}>Overleden in {deathSelectedYear}</h4>
+                                <h4 style={{ margin: '0 0 12px 0', fontWeight: '800', fontSize: '15px' }}>
+                                    Overleden in {deathSelectedYear < 0 ? `${Math.abs(deathSelectedYear)} v.Chr.` : deathSelectedYear}
+                                </h4>
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                                      {selectedDeathYear.map(p => (
                                         <div key={p.pointer} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', borderBottom: '1px solid #f1f5f9', paddingBottom: '6px' }}>
@@ -431,7 +438,7 @@ function Statistics({ persons }: { persons: IPersons }) {
                                                 onMouseEnter={e => (e.currentTarget.style.color = 'var(--primary-color)')}
                                                 onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-primary)')}
                                             >{p.firstName || ''} {p.lastName || ''}</Link>
-                                            <span style={{ color: 'var(--text-secondary)' }}>{p.death?.date}</span>
+                                            <span style={{ color: 'var(--text-secondary)' }}>{formatDate(p.death?.date) || formatDate(p.burial?.date)}</span>
                                         </div>
                                     ))}
                                 </div>
@@ -673,6 +680,7 @@ function Statistics({ persons }: { persons: IPersons }) {
                     </div>
                 </div>
             </div>
+
         </div>
     );
 }

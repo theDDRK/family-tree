@@ -1,8 +1,9 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, Polyline } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { IPerson, IPersons } from '../interfaces/IPersons';
+import { getYearSafe } from '../utils/dateUtils';
 
 // Fix Leaflet marker icon asset paths in React
 import markerIconPng from 'leaflet/dist/images/marker-icon.png';
@@ -185,12 +186,15 @@ function MapPage({ persons }: { persons: IPersons }) {
     const [showBirths, setShowBirths] = useState(true);
     const [showDeaths, setShowDeaths] = useState(true);
     const [showMigrationLines, setShowMigrationLines] = useState(true);
+    const [playbackYear, setPlaybackYear] = useState<number | null>(null);
+    const [isPlaying, setIsPlaying] = useState(false);
 
-    // Compute markers and migration flows
+    // Compute markers, migration flows, and year range
     const mapData = useMemo(() => {
         const markers: IMapMarker[] = [];
         const migrationLines: IMigrationLine[] = [];
         const cityCounts: Record<string, number> = {};
+        const allYears: number[] = [];
 
         persons.persons.forEach(p => {
             const bCoords = resolveCoordinates(p.birth?.place);
@@ -200,6 +204,12 @@ function MapPage({ persons }: { persons: IPersons }) {
                 const city = p.birth.place.split(',')[0].trim();
                 cityCounts[city] = (cityCounts[city] || 0) + 1;
             }
+
+            // Collect valid years for range computation
+            const birthYear = getYearSafe(p.birth?.date);
+            const deathYear = getYearSafe(p.death?.date);
+            if (!isNaN(birthYear) && birthYear >= 1000 && birthYear <= 2100) allYears.push(birthYear);
+            if (!isNaN(deathYear) && deathYear >= 1000 && deathYear <= 2100) allYears.push(deathYear);
 
             if (bCoords) {
                 markers.push({
@@ -235,8 +245,49 @@ function MapPage({ persons }: { persons: IPersons }) {
             .slice(0, 10)
             .map(([city, count]) => ({ city, count }));
 
-        return { markers, migrationLines, topCities };
+        const minYear = allYears.length > 0 ? Math.min(...allYears) : null;
+        const maxYear = allYears.length > 0 ? Math.max(...allYears) : null;
+
+        return { markers, migrationLines, topCities, minYear, maxYear };
     }, [persons]);
+
+    // Auto-play effect: advance playbackYear by 5 years every 100ms
+    useEffect(() => {
+        if (!isPlaying) return;
+
+        const { minYear, maxYear } = mapData;
+        if (minYear === null || maxYear === null) return;
+
+        const interval = setInterval(() => {
+            setPlaybackYear(prev => {
+                const current = prev === null ? minYear : prev;
+                const next = current + 5;
+                if (next >= maxYear) {
+                    setIsPlaying(false);
+                    return maxYear;
+                }
+                return next;
+            });
+        }, 100);
+
+        return () => clearInterval(interval);
+    }, [isPlaying, mapData]);
+
+    // Filtered markers and lines based on playbackYear
+    const visibleMarkers = playbackYear !== null
+        ? mapData.markers.filter(m => {
+            const year = getYearSafe(m.type === 'birth' ? m.person.birth?.date : m.person.death?.date);
+            return !isNaN(year) && year <= playbackYear;
+          })
+        : mapData.markers;
+
+    const visibleLines = playbackYear !== null
+        ? mapData.migrationLines.filter(line => {
+            const by = getYearSafe(line.person.birth?.date);
+            const dy = getYearSafe(line.person.death?.date);
+            return !isNaN(by) && !isNaN(dy) && by <= playbackYear && dy <= playbackYear;
+          })
+        : mapData.migrationLines;
 
     // Leaflet styles
     const containerStyle = {
@@ -249,7 +300,7 @@ function MapPage({ persons }: { persons: IPersons }) {
 
     return (
         <div className="page-container" style={{ maxWidth: '1100px' }}>
-            <h1 className="page-title">Geografische Kaart & Migratie</h1>
+            <h1 className="page-title">Geografische Kaart &amp; Migratie</h1>
             <p className="page-subtitle">Interactieve visualisatie van waar je voorouders zijn geboren, gestorven en naartoe zijn verhuisd.</p>
 
             {/* Map Filters & Controls */}
@@ -285,7 +336,7 @@ function MapPage({ persons }: { persons: IPersons }) {
                         />
 
                         {/* Birth Markers */}
-                        {showBirths && mapData.markers.filter(m => m.type === 'birth').map((m, idx) => (
+                        {showBirths && visibleMarkers.filter(m => m.type === 'birth').map((m, idx) => (
                             <Marker key={`birth-${idx}`} position={m.coords} icon={birthIcon}>
                                 <Popup>
                                     <div style={{ fontSize: '13px', lineHeight: '1.4' }}>
@@ -299,7 +350,7 @@ function MapPage({ persons }: { persons: IPersons }) {
                         ))}
 
                         {/* Death Markers */}
-                        {showDeaths && mapData.markers.filter(m => m.type === 'death').map((m, idx) => (
+                        {showDeaths && visibleMarkers.filter(m => m.type === 'death').map((m, idx) => (
                             <Marker key={`death-${idx}`} position={m.coords} icon={deathIcon}>
                                 <Popup>
                                     <div style={{ fontSize: '13px', lineHeight: '1.4' }}>
@@ -313,7 +364,7 @@ function MapPage({ persons }: { persons: IPersons }) {
                         ))}
 
                         {/* Migration Flow Lines */}
-                        {showMigrationLines && mapData.migrationLines.map((line, idx) => (
+                        {showMigrationLines && visibleLines.map((line, idx) => (
                             <Polyline
                                 key={`line-${idx}`}
                                 positions={[line.from, line.to]}
@@ -333,6 +384,59 @@ function MapPage({ persons }: { persons: IPersons }) {
                             </Polyline>
                         ))}
                     </MapContainer>
+                </div>
+            </div>
+
+            {/* Playback Timeline Controls */}
+            <div className="card" style={{ padding: '20px 30px', marginBottom: '35px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '15px', flexWrap: 'wrap' }}>
+                    <span style={{ fontSize: '11px', fontWeight: '800', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>Tijdreis Afspeelknop:</span>
+
+                    {/* Play/Pause button */}
+                    <button
+                        onClick={() => {
+                            if (playbackYear === null) setPlaybackYear(mapData.minYear ?? 1600);
+                            setIsPlaying(p => !p);
+                        }}
+                        style={{ padding: '7px 16px', borderRadius: '20px', border: '1px solid var(--border-color)', backgroundColor: isPlaying ? 'var(--primary-color)' : 'var(--card-bg)', color: isPlaying ? 'white' : 'var(--text-primary)', fontWeight: '700', fontSize: '13px', cursor: 'pointer', fontFamily: 'inherit' }}
+                    >
+                        {isPlaying ? '⏸ Pause' : '▶ Afspelen'}
+                    </button>
+
+                    {/* Reset button */}
+                    <button
+                        onClick={() => { setPlaybackYear(null); setIsPlaying(false); }}
+                        style={{ padding: '7px 16px', borderRadius: '20px', border: '1px solid var(--border-color)', backgroundColor: 'var(--card-bg)', color: 'var(--text-secondary)', fontWeight: '700', fontSize: '13px', cursor: 'pointer', fontFamily: 'inherit' }}
+                    >
+                        ↺ Reset
+                    </button>
+
+                    {/* Year display */}
+                    <span style={{ fontSize: '20px', fontWeight: '800', color: 'var(--primary-color)', minWidth: '60px' }}>
+                        {playbackYear !== null ? playbackYear : 'Alle'}
+                    </span>
+
+                    {/* Year slider */}
+                    {mapData.minYear && mapData.maxYear && (
+                        <input
+                            type="range"
+                            min={mapData.minYear}
+                            max={mapData.maxYear}
+                            value={playbackYear ?? mapData.maxYear}
+                            onChange={e => { setIsPlaying(false); setPlaybackYear(Number(e.target.value)); }}
+                            style={{ flex: 1, minWidth: '200px', accentColor: 'var(--primary-color)' }}
+                        />
+                    )}
+
+                    {/* Visible count */}
+                    {playbackYear !== null && (
+                        <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
+                            {mapData.markers.filter(m => {
+                                const y = getYearSafe(m.type === 'birth' ? m.person.birth?.date : m.person.death?.date);
+                                return !isNaN(y) && y <= playbackYear!;
+                            }).length} van {mapData.markers.length} locaties zichtbaar
+                        </span>
+                    )}
                 </div>
             </div>
 
@@ -367,7 +471,7 @@ function MapPage({ persons }: { persons: IPersons }) {
 
                 {/* Map Legend & Explanation */}
                 <div className="card" style={{ padding: '30px' }}>
-                    <h3 style={{ margin: '0 0 15px 0', fontWeight: '800' }}>Kaartlegenda & Info</h3>
+                    <h3 style={{ margin: '0 0 15px 0', fontWeight: '800' }}>Kaartlegenda &amp; Info</h3>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '15px', fontSize: '13px', color: 'var(--text-secondary)', lineHeight: '1.6' }}>
                         <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
                             <span style={{ display: 'inline-block', width: '12px', height: '12px', borderRadius: '50%', backgroundColor: '#3b82f6' }}></span>

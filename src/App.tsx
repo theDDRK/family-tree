@@ -136,12 +136,12 @@ function App() {
   if (isLoading) {
     const progress = getProgressPercentage(loadingStage);
     return (
-      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', flexDirection: 'column', fontFamily: 'sans-serif', backgroundColor: '#fcfcfc' }}>
-        <div className="spinner" style={{ border: '4px solid rgba(0, 0, 0, 0.1)', width: '40px', height: '40px', borderRadius: '50%', borderLeftColor: '#2B4162', animation: 'spin 1s linear infinite' }} />
-        <p style={{ marginTop: '20px', color: '#2B4162', fontWeight: 600, fontSize: '18px' }}>{loadingStage || 'Gegevens laden...'}</p>
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', flexDirection: 'column', fontFamily: 'sans-serif', backgroundColor: 'var(--bg-color)', color: 'var(--text-primary)' }}>
+        <div className="spinner" style={{ border: '4px solid var(--border-color)', width: '40px', height: '40px', borderRadius: '50%', borderLeftColor: 'var(--primary-color)', animation: 'spin 1s linear infinite' }} />
+        <p style={{ marginTop: '20px', color: 'var(--primary-color)', fontWeight: 600, fontSize: '18px' }}>{loadingStage || 'Gegevens laden...'}</p>
         {progress > 0 && (
-          <div style={{ width: '200px', height: '6px', backgroundColor: '#e0e0e0', borderRadius: '3px', marginTop: '10px', overflow: 'hidden' }}>
-            <div style={{ width: `${progress}%`, height: '100%', backgroundColor: '#2B4162', transition: 'width 0.3s ease-in-out' }} />
+          <div style={{ width: '200px', height: '6px', backgroundColor: 'var(--border-color)', borderRadius: '3px', marginTop: '10px', overflow: 'hidden' }}>
+            <div style={{ width: `${progress}%`, height: '100%', backgroundColor: 'var(--primary-color)', transition: 'width 0.3s ease-in-out' }} />
           </div>
         )}
         <style>{`
@@ -192,11 +192,13 @@ function App() {
           sex: null,
           birth: {
             date: null,
-            place: null
+            place: null,
+            sources: []
           },
           death: {
             date: null,
-            place: null
+            place: null,
+            sources: []
           },
           residence: [],
           familyChild: null,
@@ -206,15 +208,18 @@ function App() {
           siblings: [],
           partners: [],
           children: [],
+          marriages: [],
           occupation: null,
           note: null,
           burial: {
             date: null,
-            place: null
+            place: null,
+            sources: []
           },
           christening: {
             date: null,
-            place: null
+            place: null,
+            sources: []
           }
         };
         for (const child of individualRecord.children) {
@@ -237,10 +242,14 @@ function App() {
               child.children.forEach((burialChild: any) => {
                 switch (burialChild.tag) {
                   case 'DATE':
-                    person.burial!.date = burialChild.value || null;
+                    person.burial.date = burialChild.value || null;
                     break;
                   case 'PLAC':
-                    person.burial!.place = burialChild.value || null;
+                    person.burial.place = burialChild.value || null;
+                    break;
+                  case 'SOUR':
+                    if (!person.burial.sources) person.burial.sources = [];
+                    person.burial.sources.push(burialChild.value || '');
                     break;
                   default:
                     break;
@@ -252,10 +261,14 @@ function App() {
               child.children.forEach((chrChild: any) => {
                 switch (chrChild.tag) {
                   case 'DATE':
-                    person.christening!.date = chrChild.value || null;
+                    person.christening.date = chrChild.value || null;
                     break;
                   case 'PLAC':
-                    person.christening!.place = chrChild.value || null;
+                    person.christening.place = chrChild.value || null;
+                    break;
+                  case 'SOUR':
+                    if (!person.christening.sources) person.christening.sources = [];
+                    person.christening.sources.push(chrChild.value || '');
                     break;
                   default:
                     break;
@@ -271,6 +284,10 @@ function App() {
                   case 'PLAC':
                     person.birth.place = birthChild.value || null;
                     break;
+                  case 'SOUR':
+                    if (!person.birth.sources) person.birth.sources = [];
+                    person.birth.sources.push(birthChild.value || '');
+                    break;
                   default:
                     break;
                 }
@@ -285,6 +302,10 @@ function App() {
                   case 'PLAC':
                     person.death.place = deathChild.value || null;
                     break;
+                  case 'SOUR':
+                    if (!person.death.sources) person.death.sources = [];
+                    person.death.sources.push(deathChild.value || '');
+                    break;
                   default:
                     break;
                 }
@@ -297,23 +318,30 @@ function App() {
               person.familyParent.push(child.value);
               break;
             case 'RESI':
+              let personResidence: IDatePlace = {
+                date: null,
+                place: null,
+                sources: []
+              };
               child.children.forEach((residenceChild: any) => {
-                let personResidence: IDatePlace = {
-                  date: null,
-                  place: null
-                };
                 switch (residenceChild.tag) {
                   case 'DATE':
                     personResidence.date = residenceChild.value || null;
                     break;
                   case 'PLAC':
                     personResidence.place = residenceChild.value || null;
-                    person.residence!.push(personResidence);
+                    break;
+                  case 'SOUR':
+                    if (!personResidence.sources) personResidence.sources = [];
+                    personResidence.sources.push(residenceChild.value || '');
                     break;
                   default:
                     break;
                 }
               });
+              if (personResidence.date || personResidence.place) {
+                person.residence!.push(personResidence);
+              }
               break;
             default:
               break;
@@ -324,10 +352,10 @@ function App() {
     };
   }
 
-  function parseFamilies(familyRecords: any[]) {
+  function parseFamilies(familyRecords: any[]): IFamilies {
     return {
-      families: familyRecords.map((familyRecord: any) => {
-        let family = {
+      families: familyRecords.map((familyRecord: any): IFamily => {
+        let family: IFamily = {
           tag: familyRecord.tag,
           pointer: familyRecord.pointer,
           value: familyRecord.value,
@@ -335,9 +363,11 @@ function App() {
           indexRelative: familyRecord.indexRelative,
           husband: null,
           wife: null,
-          children: []
+          children: [],
+          marriage: null,
+          divorce: null
         };
-
+ 
         for (const child of familyRecord.children) {
           switch (child.tag) {
             case 'HUSB':
@@ -347,7 +377,42 @@ function App() {
               family.wife = child.value;
               break;
             case 'CHIL':
+              if (!family.children) family.children = [];
               family.children.push(child.value);
+              break;
+            case 'MARR':
+              family.marriage = { date: null, place: null, sources: [] };
+              child.children.forEach((marrChild: any) => {
+                switch (marrChild.tag) {
+                  case 'DATE':
+                    family.marriage!.date = marrChild.value || null;
+                    break;
+                  case 'PLAC':
+                    family.marriage!.place = marrChild.value || null;
+                    break;
+                  case 'SOUR':
+                    if (!family.marriage!.sources) family.marriage!.sources = [];
+                    family.marriage!.sources.push(marrChild.value || '');
+                    break;
+                }
+              });
+              break;
+            case 'DIV':
+              family.divorce = { date: null, place: null, sources: [] };
+              child.children.forEach((divChild: any) => {
+                switch (divChild.tag) {
+                  case 'DATE':
+                    family.divorce!.date = divChild.value || null;
+                    break;
+                  case 'PLAC':
+                    family.divorce!.place = divChild.value || null;
+                    break;
+                  case 'SOUR':
+                    if (!family.divorce!.sources) family.divorce!.sources = [];
+                    family.divorce!.sources.push(divChild.value || '');
+                    break;
+                }
+              });
               break;
             default:
               break;
@@ -357,7 +422,7 @@ function App() {
       })
     };
   }
-
+ 
   function addRelationshipsToPersons(persons: IPersons, families: IFamilies) {
     const personMap = new Map<string, IPerson>();
     persons.persons.forEach(person => {
@@ -365,24 +430,24 @@ function App() {
         personMap.set(person.pointer, person);
       }
     });
-
-    const familyMap = new Map<string, any>();
+ 
+    const familyMap = new Map<string, IFamily>();
     families.families.forEach(family => {
       if (family.pointer) {
         familyMap.set(family.pointer, family);
       }
     });
-
+ 
     persons.persons.forEach(person => {
       if (person.familyChild) {
         const family = familyMap.get(person.familyChild);
         if (family) {
           person.father = family.husband ? personMap.get(family.husband) || null : null;
           person.mother = family.wife ? personMap.get(family.wife) || null : null;
-          person.siblings = family.children
+          person.siblings = (family.children || [])
             .filter((child: string) => child !== person.pointer)
             .map((child: string) => personMap.get(child) || null)
-            .filter((sibling: IPerson | null) => sibling !== null);
+            .filter((sibling: IPerson | null) => sibling !== null) as IPerson[];
         }
       }
       if (person.familyParent && person.familyParent.length > 0) {
@@ -391,18 +456,25 @@ function App() {
           if (family) {
             const partners = [family.husband, family.wife]
               .filter(pointer => pointer && pointer !== person.pointer)
-              .map(pointer => personMap.get(pointer) || null)
+              .map(pointer => pointer ? personMap.get(pointer) || null : null)
               .filter((partner: IPerson | null) => partner !== null) as IPerson[];
             if (partners.length > 0) {
-              person.partners.push(...partners);
+              person.partners!.push(...partners);
+              partners.forEach(partner => {
+                person.marriages.push({
+                  partnerPointer: partner.pointer || '',
+                  marriage: family.marriage || null,
+                  divorce: family.divorce || null
+                });
+              });
             }
-            const children = family.children
+            const children = (family.children || [])
               .map((child: string) => personMap.get(child) || null)
               .filter((child: IPerson | null) => child !== null) as IPerson[];
             if (children.length > 0) {
               children.forEach(child => {
-                if (!person.children.some(existingChild => existingChild.pointer === child.pointer)) {
-                  person.children.push(child);
+                if (!person.children!.some(existingChild => existingChild.pointer === child.pointer)) {
+                  person.children!.push(child);
                 }
               });
             }
@@ -411,6 +483,7 @@ function App() {
       }
     });
   }
+
 
   function calculateGenerations(
     person: IPerson,

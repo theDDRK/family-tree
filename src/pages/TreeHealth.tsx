@@ -1,43 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { IPerson, IPersons } from '../interfaces/IPersons';
-
-// ─── Types ────────────────────────────────────────────────────────────────────
-
-type Severity = 'error' | 'warning' | 'info';
-type Category =
-    | 'Levensduur'
-    | 'Ouderleeftijd'
-    | 'Datumfouten'
-    | 'Gezinsrelaties'
-    | 'Gegevensvolledigheid';
-
-interface IHealthIssue {
-    person: IPerson;
-    severity: Severity;
-    category: Category;
-    rule: string;
-    details: string;
-}
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-const getYear = (d: string | null | undefined): number => {
-    if (!d) return NaN;
-    const m = d.match(/\d{4}/);
-    return m ? parseInt(m[0], 10) : NaN;
-};
-
-const getFullDate = (d: string | null | undefined): Date | null => {
-    if (!d) return null;
-    const m = d.match(/(\d{1,2})\s+([A-Z]{3})\s+(\d{4})/);
-    if (!m) return null;
-    const months: Record<string, number> = {
-        JAN: 0, FEB: 1, MAR: 2, APR: 3, MAY: 4, JUN: 5,
-        JUL: 6, AUG: 7, SEP: 8, OCT: 9, NOV: 10, DEC: 11,
-    };
-    return new Date(parseInt(m[3]), months[m[2]] ?? 0, parseInt(m[1]));
-};
+import { getYearSafe, parseDateToNumber, dateToDays } from '../utils/dateUtils';
 
 // ─── Cycle detector (O(N) single-pass DFS) ────────────────────────────────────
 
@@ -98,12 +62,12 @@ function runAudit(persons: IPerson[]): IHealthIssue[] {
     const cyclePointers = detectAllCycles(persons);
 
     persons.forEach(person => {
-        const bYear = getYear(person.birth?.date) || getYear(person.christening?.date);
-        const dYear = getYear(person.death?.date) || getYear(person.burial?.date);
-        const bDate = getFullDate(person.birth?.date) ?? getFullDate(person.christening?.date);
-        const dDate = getFullDate(person.death?.date);
-        const burDate = getFullDate(person.burial?.date);
-        const doopDate = getFullDate(person.christening?.date);
+        const bYear = getYearSafe(person.birth?.date) || getYearSafe(person.christening?.date);
+        const dYear = getYearSafe(person.death?.date) || getYearSafe(person.burial?.date);
+        const bNum = parseDateToNumber(person.birth?.date) ?? parseDateToNumber(person.christening?.date);
+        const dNum = parseDateToNumber(person.death?.date);
+        const burNum = parseDateToNumber(person.burial?.date);
+        const doopNum = parseDateToNumber(person.christening?.date);
 
         const push = (
             severity: Severity,
@@ -147,17 +111,17 @@ function runAudit(persons: IPerson[]): IHealthIssue[] {
                 `Overlijdensjaar ${dYear} ligt na het huidige jaar ${CURRENT_YEAR}.`);
         }
 
-        if (bDate && dDate && dDate < bDate) {
+        if (bNum !== null && dNum !== null && dNum < bNum) {
             push('error', 'Datumfouten', 'Overlijden voor geboorte (exacte datum)',
                 `Overlijdensdatum (${person.death?.date}) ligt voor de geboortedatum (${person.birth?.date}).`);
         }
 
-        if (burDate && dDate && burDate < dDate) {
+        if (burNum !== null && dNum !== null && burNum < dNum) {
             push('error', 'Datumfouten', 'Begrafenis voor overlijden',
                 `Begrafenisdatum (${person.burial?.date}) ligt voor de overlijdensdatum (${person.death?.date}).`);
         }
 
-        if (bDate && doopDate && doopDate < bDate) {
+        if (bNum !== null && doopNum !== null && doopNum < bNum) {
             push('error', 'Datumfouten', 'Doop voor geboorte',
                 `Doopdatum (${person.christening?.date}) ligt voor de geboortedatum (${person.birth?.date}).`);
         }
@@ -170,7 +134,7 @@ function runAudit(persons: IPerson[]): IHealthIssue[] {
         // ── OUDERLEEFTIJD ───────────────────────────────────────────────────
         if (person.children) {
             const sortedChildren = [...person.children]
-                .map(c => ({ child: c, cYear: getYear(c.birth?.date) || getYear(c.christening?.date) }))
+                .map(c => ({ child: c, cYear: getYearSafe(c.birth?.date) || getYearSafe(c.christening?.date) }))
                 .filter(x => !isNaN(x.cYear))
                 .sort((a, b) => a.cYear - b.cYear);
 
@@ -221,11 +185,10 @@ function runAudit(persons: IPerson[]): IHealthIssue[] {
             for (let i = 0; i < sortedChildren.length - 1; i++) {
                 const a = sortedChildren[i];
                 const b = sortedChildren[i + 1];
-                const aDate = getFullDate(a.child.birth?.date);
-                const bDate2 = getFullDate(b.child.birth?.date);
-                if (aDate && bDate2) {
-                    const diffMs = bDate2.getTime() - aDate.getTime();
-                    const diffDays = diffMs / (1000 * 60 * 60 * 24);
+                const aDays = dateToDays(a.child.birth?.date);
+                const bDays = dateToDays(b.child.birth?.date);
+                if (aDays !== null && bDays !== null) {
+                    const diffDays = bDays - aDays;
                     if (diffDays > 1 && diffDays < 270) {
                         push('warning', 'Ouderleeftijd', 'Twee kinderen geboren binnen 9 maanden',
                             `${a.child.firstName || '?'} (${a.child.birth?.date}) en ${b.child.firstName || '?'} (${b.child.birth?.date}) zijn te kort na elkaar geboren.`);
@@ -252,7 +215,7 @@ function runAudit(persons: IPerson[]): IHealthIssue[] {
         // Sibling age gap > 30 years
         if (person.siblings && person.siblings.length > 0) {
             const sibYears = [person, ...person.siblings]
-                .map(s => getYear(s.birth?.date) || getYear(s.christening?.date))
+                .map(s => getYearSafe(s.birth?.date) || getYearSafe(s.christening?.date))
                 .filter(y => !isNaN(y));
             if (sibYears.length >= 2) {
                 const minY = Math.min(...sibYears);
@@ -266,14 +229,14 @@ function runAudit(persons: IPerson[]): IHealthIssue[] {
 
         // Parent born after child
         if (person.father) {
-            const fBYear = getYear(person.father.birth?.date) || getYear(person.father.christening?.date);
+            const fBYear = getYearSafe(person.father.birth?.date) || getYearSafe(person.father.christening?.date);
             if (!isNaN(bYear) && !isNaN(fBYear) && fBYear > bYear) {
                 push('error', 'Gezinsrelaties', 'Vader geboren na kind',
                     `Vader ${person.father.firstName} ${person.father.lastName} is geboren in ${fBYear}, maar het kind in ${bYear}.`);
             }
         }
         if (person.mother) {
-            const mBYear = getYear(person.mother.birth?.date) || getYear(person.mother.christening?.date);
+            const mBYear = getYearSafe(person.mother.birth?.date) || getYearSafe(person.mother.christening?.date);
             if (!isNaN(bYear) && !isNaN(mBYear) && mBYear > bYear) {
                 push('error', 'Gezinsrelaties', 'Moeder geboren na kind',
                     `Moeder ${person.mother.firstName} ${person.mother.lastName} is geboren in ${mBYear}, maar het kind in ${bYear}.`);

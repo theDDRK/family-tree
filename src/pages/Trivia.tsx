@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { IPersons } from '../interfaces/IPersons';
+import { getYearSafe } from '../utils/dateUtils';
 
 interface IQuestion {
     type: string;
@@ -9,11 +10,7 @@ interface IQuestion {
     explanation: string;
 }
 
-const getYearSafe = (dateStr: string | null | undefined): number => {
-    if (!dateStr) return NaN;
-    const match = dateStr.match(/\d{4}/);
-    return match ? parseInt(match[0], 10) : NaN;
-};
+
 
 function Trivia({ persons }: { persons: IPersons }) {
     const validPersons = useMemo(() => {
