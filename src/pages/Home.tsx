@@ -1,7 +1,57 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { Link } from 'react-router-dom';
+import { getBookmarks } from '../utils/bookmarks';
+import { getYearSafe } from '../utils/dateUtils';
 
 function Home({ filename, persons, handleFileChange }: { filename: string | null, persons: any, handleFileChange: (filename: string, buffer: ArrayBuffer) => void }) {
     const [dragActive, setDragActive] = useState(false);
+    const [starredPointers, setStarredPointers] = useState<string[]>([]);
+
+    useEffect(() => {
+        setStarredPointers(getBookmarks());
+        const handleChanged = () => {
+            setStarredPointers(getBookmarks());
+        };
+        window.addEventListener('bookmarks-changed', handleChanged);
+        return () => window.removeEventListener('bookmarks-changed', handleChanged);
+    }, []);
+
+    const bookmarkedPersons = useMemo(() => {
+        if (!persons?.persons) return [];
+        return persons.persons.filter((p: any) => starredPointers.includes(p.pointer || ''));
+    }, [persons, starredPointers]);
+
+    const currentDay = useMemo(() => new Date().getDate(), []);
+    const currentMonthStr = useMemo(() => {
+        const months = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
+        return months[new Date().getMonth()];
+    }, []);
+    const currentMonthDutch = useMemo(() => {
+        const monthsDutch = ['januari', 'februari', 'maart', 'april', 'mei', 'juni', 'juli', 'augustus', 'september', 'oktober', 'november', 'december'];
+        return monthsDutch[new Date().getMonth()];
+    }, []);
+
+    const matchMonthDay = useCallback((dateStr: string | null) => {
+        if (!dateStr) return false;
+        const parts = dateStr.toUpperCase().split(/\s+/);
+        const monthIndex = parts.indexOf(currentMonthStr);
+        if (monthIndex > 0) {
+            const dayPart = parts[monthIndex - 1];
+            const dayNum = parseInt(dayPart, 10);
+            return dayNum === currentDay;
+        }
+        return false;
+    }, [currentDay, currentMonthStr]);
+
+    const todayBirths = useMemo(() => {
+        if (!persons?.persons) return [];
+        return persons.persons.filter((p: any) => matchMonthDay(p.birth?.date));
+    }, [persons, matchMonthDay]);
+
+    const todayDeaths = useMemo(() => {
+        if (!persons?.persons) return [];
+        return persons.persons.filter((p: any) => matchMonthDay(p.death?.date));
+    }, [persons, matchMonthDay]);
 
     const handleUpload = (file: File) => {
         const reader = new FileReader();
@@ -165,6 +215,140 @@ function Home({ filename, persons, handleFileChange }: { filename: string | null
                     </div>
                 )}
             </div>
+
+            {/* Bookmarks / Favorites Section */}
+            {isUploaded && bookmarkedPersons.length > 0 && (
+                <div className="card" style={{ marginTop: '30px', textAlign: 'left', padding: '30px', borderRadius: '24px' }}>
+                    <h3 style={{ margin: '0 0 16px 0', fontWeight: '800', fontSize: '20px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span>Favoriete personen</span>
+                        <span style={{ color: '#fbbf24' }}>★</span>
+                    </h3>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '15px' }}>
+                        {bookmarkedPersons.map(p => {
+                            const birthYear = getYearSafe(p.birth?.date) || getYearSafe(p.christening?.date);
+                            const textColor = p.sex === 'M' ? 'var(--male-color)' : p.sex === 'F' ? 'var(--female-color)' : 'var(--text-secondary)';
+                            return (
+                                <Link
+                                    key={p.pointer}
+                                    to={`/personen/${p.pointer}`}
+                                    style={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        padding: '12px 16px',
+                                        borderRadius: '16px',
+                                        border: '1px solid var(--border-color)',
+                                        textDecoration: 'none',
+                                        backgroundColor: 'var(--card-bg)',
+                                        transition: 'all 0.2s ease',
+                                    }}
+                                    onMouseEnter={e => {
+                                        e.currentTarget.style.borderColor = 'var(--primary-color)';
+                                        e.currentTarget.style.transform = 'translateY(-2px)';
+                                    }}
+                                    onMouseLeave={e => {
+                                        e.currentTarget.style.borderColor = 'var(--border-color)';
+                                        e.currentTarget.style.transform = 'translateY(0)';
+                                    }}
+                                >
+                                    <div style={{
+                                        width: '36px',
+                                        height: '36px',
+                                        borderRadius: '50%',
+                                        backgroundColor: p.sex === 'M' ? 'rgba(59, 130, 246, 0.1)' : p.sex === 'F' ? 'rgba(236, 72, 153, 0.1)' : 'var(--border-color)',
+                                        color: textColor,
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        marginRight: '12px',
+                                        fontWeight: 'bold',
+                                        fontSize: '16px'
+                                    }}>
+                                        {p.sex === 'M' ? '♂' : p.sex === 'F' ? '♀' : '?'}
+                                    </div>
+                                    <div style={{ overflow: 'hidden' }}>
+                                        <div style={{ fontSize: '14px', fontWeight: '700', color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                            {p.firstName} {p.lastName}
+                                        </div>
+                                        {!isNaN(birthYear) && (
+                                            <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
+                                                Geboren in {birthYear < 0 ? `${Math.abs(birthYear)} v.Chr.` : birthYear}
+                                            </div>
+                                        )}
+                                    </div>
+                                </Link>
+                            );
+                        })}
+                    </div>
+                </div>
+            )}
+
+            {/* On This Day Widget */}
+            {isUploaded && (todayBirths.length > 0 || todayDeaths.length > 0) && (
+                <div className="card" style={{ marginTop: '30px', textAlign: 'left', padding: '30px', borderRadius: '24px' }}>
+                    <h3 style={{ margin: '0 0 16px 0', fontWeight: '800', fontSize: '20px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span>Vandaag in de geschiedenis ({currentDay} {currentMonthDutch})</span>
+                        <span style={{ fontSize: '18px' }}>📅</span>
+                    </h3>
+                    
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '30px' }}>
+                        {/* Births */}
+                        {todayBirths.length > 0 && (
+                            <div>
+                                <h4 style={{ margin: '0 0 12px 0', fontWeight: '700', fontSize: '15px', color: 'var(--primary-color)' }}>
+                                    Jarig vandaag 🎂
+                                </h4>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                                    {todayBirths.map(p => {
+                                        const year = getYearSafe(p.birth?.date);
+                                        const yearsAgo = new Date().getFullYear() - year;
+                                        return (
+                                            <div key={p.pointer} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', borderBottom: '1px solid var(--border-color)', paddingBottom: '8px' }}>
+                                                <Link to={`/personen/${p.pointer}`} style={{ fontWeight: '600', color: 'var(--text-primary)', textDecoration: 'none' }}
+                                                    onMouseEnter={e => e.currentTarget.style.color = 'var(--primary-color)'}
+                                                    onMouseLeave={e => e.currentTarget.style.color = 'var(--text-primary)'}
+                                                >
+                                                    {p.firstName || ''} {p.lastName || ''}
+                                                </Link>
+                                                <span style={{ color: 'var(--text-secondary)' }}>
+                                                    {!isNaN(year) ? `${year} (${yearsAgo} jaar geleden)` : 'Datum onbekend'}
+                                                </span>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Deaths */}
+                        {todayDeaths.length > 0 && (
+                            <div>
+                                <h4 style={{ margin: '0 0 12px 0', fontWeight: '700', fontSize: '15px', color: 'var(--female-color)' }}>
+                                    Overleden vandaag 🕯️
+                                </h4>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                                    {todayDeaths.map(p => {
+                                        const year = getYearSafe(p.death?.date);
+                                        const yearsAgo = new Date().getFullYear() - year;
+                                        return (
+                                            <div key={p.pointer} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', borderBottom: '1px solid var(--border-color)', paddingBottom: '8px' }}>
+                                                <Link to={`/personen/${p.pointer}`} style={{ fontWeight: '600', color: 'var(--text-primary)', textDecoration: 'none' }}
+                                                    onMouseEnter={e => e.currentTarget.style.color = 'var(--female-color)'}
+                                                    onMouseLeave={e => e.currentTarget.style.color = 'var(--text-primary)'}
+                                                >
+                                                    {p.firstName || ''} {p.lastName || ''}
+                                                </Link>
+                                                <span style={{ color: 'var(--text-secondary)' }}>
+                                                    {!isNaN(year) ? `${year} (${yearsAgo} jaar geleden)` : 'Datum onbekend'}
+                                                </span>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

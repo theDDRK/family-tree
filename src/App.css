@@ -60,6 +60,11 @@
   background-color: rgba(79, 70, 229, 0.08);
 }
 
+.link.active {
+  color: var(--primary-color);
+  background-color: rgba(79, 70, 229, 0.08);
+}
+
 /* Scroll to top button */
 .scroll-to-top {
   position: fixed;
@@ -206,11 +211,23 @@ table caption {
 }
 
 /* Custom classes for pages */
+@keyframes pageEnter {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 .page-container {
   max-width: 1000px;
   margin: 90px auto 40px;
   padding: 0 20px;
   text-align: left;
+  animation: pageEnter 0.35s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 .page-title {
@@ -361,4 +378,45 @@ table caption {
     padding-top: 20px !important;
     margin-top: 15px;
   }
+}
+
+/* Premium keyboard accessibility focus rings */
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid var(--primary-color);
+  outline-offset: 2px;
+}
+
+/* Shimmer animation for skeleton loading states */
+@keyframes shimmer {
+  0% {
+    background-position: -468px 0;
+  }
+  100% {
+    background-position: 468px 0;
+  }
+}
+
+.skeleton-shimmer {
+  background: linear-gradient(to right, var(--bg-color) 8%, var(--border-color) 18%, var(--bg-color) 33%);
+  background-size: 800px 104px;
+  animation: shimmer 1.5s linear infinite;
+  position: relative;
+}
+
+.skeleton-bar {
+  height: 16px;
+  border-radius: 8px;
+  background-color: var(--border-color);
+  margin-bottom: 12px;
+}
+
+.skeleton-card {
+  padding: 30px;
+  border-radius: 24px;
+  border: 1px solid var(--border-color);
+  background-color: var(--card-bg);
 }

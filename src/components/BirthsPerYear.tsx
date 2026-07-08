@@ -44,12 +44,12 @@ function BirthsPerYear({ persons }: { persons: IPersons }) {
                 <div style={{ width: '100%', height: '320px' }}>
                     <ResponsiveContainer width="100%" height="100%">
                         <LineChart data={birthdateYears} onClick={(event: any) => event && event.activePayload && setBirthSelectedYear(event.activePayload[0].payload.rawYear)}>
-                            <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                            <CartesianGrid strokeDasharray="3 3" stroke="var(--border-color)" />
                             <XAxis dataKey="jaar" stroke="#94a3b8" fontSize={11} tickLine={false} />
                             <YAxis stroke="#94a3b8" fontSize={11} tickLine={false} />
-                            <Tooltip />
+                            <Tooltip contentStyle={{ backgroundColor: 'var(--card-bg)', borderColor: 'var(--border-color)', color: 'var(--text-primary)' }} />
                             <Line type="monotone" dataKey="aantal" stroke="var(--primary-color)" strokeWidth={2} dot={{ r: 3, fill: 'var(--primary-color)' }} activeDot={{ r: 6 }} cursor="pointer" />
-                            <Brush dataKey="jaar" height={30} stroke="var(--primary-color)" fill="#f8fafc" />
+                            <Brush dataKey="jaar" height={30} stroke="var(--primary-color)" fill="var(--bg-color)" />
                         </LineChart>
                     </ResponsiveContainer>
                 </div>
@@ -62,7 +62,7 @@ function BirthsPerYear({ persons }: { persons: IPersons }) {
                             </h4>
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                                 {selectedPersonsYear.map(p => (
-                                    <div key={p.pointer} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', borderBottom: '1px solid #f1f5f9', paddingBottom: '6px' }}>
+                                    <div key={p.pointer} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', borderBottom: '1px solid var(--border-color)', paddingBottom: '6px' }}>
                                         <span style={{ fontWeight: '600' }}>{p.firstName || ''} {p.lastName || ''}</span>
                                         <span style={{ color: 'var(--text-secondary)' }}>{formatDate(p.birth?.date) || formatDate(p.christening?.date)}</span>
                                     </div>

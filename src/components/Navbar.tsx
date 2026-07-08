@@ -1,11 +1,15 @@
 import React, { useEffect, useState, useRef } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 
 const Navbar: React.FC = () => {
+    const navigate = useNavigate();
+    const location = useLocation();
+    const currentPath = location.pathname;
+
     const [scrollY, setScrollY] = useState(0);
     const [moreOpen, setMoreOpen] = useState(false);
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
     const moreRef = useRef<HTMLDivElement>(null);
-    const rootPath = '/family-tree';
 
     const [isDarkMode, setIsDarkMode] = useState(() => {
         const theme = localStorage.getItem('theme');
@@ -42,11 +46,17 @@ const Navbar: React.FC = () => {
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
 
-    const navigate = (path: string) => () => {
+    const handleNavigate = (path: string) => () => {
         setMoreOpen(false);
         setMobileMenuOpen(false);
-        window.history.pushState({}, '', path);
-        window.dispatchEvent(new PopStateEvent('popstate'));
+        navigate(path);
+    };
+
+    const isActive = (path: string) => {
+        if (path === '/') {
+            return currentPath === '/' || currentPath === '';
+        }
+        return currentPath.startsWith(path);
     };
 
     const navigationItems = [
@@ -57,27 +67,34 @@ const Navbar: React.FC = () => {
         { label: '💡  Hints', path: '/hints' },
     ];
 
+    const isMoreActive = () => {
+        return navigationItems.some(item => isActive(item.path));
+    };
+
     return (
         <>
             <nav className='navbar'>
-                <div className='title' onClick={navigate(rootPath + '/')} style={{ cursor: 'pointer', display: 'flex' }}>
+                <div className='title' onClick={handleNavigate('/')} style={{ cursor: 'pointer', display: 'flex' }}>
                     <p style={{color: '#87CEEB', marginBlock: '0', marginInline: '0', fontWeight: '800'}}>Familie</p>
                     <p style={{color: '#FFB6C1', marginBlock: '0', marginInline: '0', fontWeight: '800'}}>Boom</p>
                 </div>
                 
                 {/* Desktop Menu (hidden on mobile via CSS) */}
                 <div className='desktop-links'>
-                    <button className='link' onClick={navigate(rootPath + '/')}>Home</button>
-                    <button className='link' onClick={navigate(rootPath + '/stamboom')}>Stamboom</button>
-                    <button className='link' onClick={navigate(rootPath + '/personen')}>Personen</button>
-                    <button className='link' onClick={navigate(rootPath + '/statistieken')}>Statistieken</button>
-                    <button className='link' onClick={navigate(rootPath + '/connecties')}>Connecties</button>
+                    <button className={`link ${isActive('/') ? 'active' : ''}`} onClick={handleNavigate('/')}>Home</button>
+                    <button className={`link ${isActive('/stamboom') ? 'active' : ''}`} onClick={handleNavigate('/stamboom')}>Stamboom</button>
+                    <button className={`link ${isActive('/personen') ? 'active' : ''}`} onClick={handleNavigate('/personen')}>Personen</button>
+                    <button className={`link ${isActive('/statistieken') ? 'active' : ''}`} onClick={handleNavigate('/statistieken')}>Statistieken</button>
+                    <button className={`link ${isActive('/connecties') ? 'active' : ''}`} onClick={handleNavigate('/connecties')}>Connecties</button>
 
                     {/* Dropdown "Meer" menu for secondary pages */}
                     <div ref={moreRef} style={{ position: 'relative' }}>
                         <button
-                            className='link'
+                            className={`link ${isMoreActive() ? 'active' : ''}`}
                             onClick={() => setMoreOpen(prev => !prev)}
+                            aria-expanded={moreOpen}
+                            aria-haspopup="true"
+                            aria-label="Meer pagina's"
                             style={{ display: 'flex', alignItems: 'center', gap: '4px' }}
                         >
                             Meer
@@ -86,7 +103,7 @@ const Navbar: React.FC = () => {
                                 transition: 'transform 0.2s',
                                 transform: moreOpen ? 'rotate(180deg)' : 'rotate(0deg)',
                                 display: 'inline-block'
-                             }}>▼</span>
+                            }}>▼</span>
                         </button>
 
                         {moreOpen && (
@@ -106,7 +123,7 @@ const Navbar: React.FC = () => {
                                 {navigationItems.map(item => (
                                     <button
                                         key={item.path}
-                                        onClick={navigate(rootPath + item.path)}
+                                        onClick={handleNavigate(item.path)}
                                         style={{
                                             display: 'block',
                                             width: '100%',
@@ -116,13 +133,22 @@ const Navbar: React.FC = () => {
                                             border: 'none',
                                             fontSize: '13px',
                                             fontWeight: '600',
-                                            color: 'var(--text-secondary)',
+                                            color: isActive(item.path) ? 'var(--primary-color)' : 'var(--text-secondary)',
+                                            backgroundColor: isActive(item.path) ? 'var(--bg-color)' : 'transparent',
                                             cursor: 'pointer',
                                             transition: 'background 0.15s',
                                             fontFamily: 'inherit',
                                         }}
-                                        onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'var(--bg-color)')}
-                                        onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'transparent')}
+                                        onMouseEnter={e => {
+                                            if (!isActive(item.path)) {
+                                                e.currentTarget.style.backgroundColor = 'var(--bg-color)';
+                                            }
+                                        }}
+                                        onMouseLeave={e => {
+                                            if (!isActive(item.path)) {
+                                                e.currentTarget.style.backgroundColor = 'transparent';
+                                            }
+                                        }}
                                     >
                                         {item.label}
                                     </button>
@@ -134,6 +160,31 @@ const Navbar: React.FC = () => {
 
                 {/* Right actions (visible on all devices) */}
                 <div style={{ display: 'flex', alignItems: 'center' }}>
+                    {/* Global Search Button (always visible) */}
+                    <button 
+                        onClick={() => window.dispatchEvent(new CustomEvent('toggle-search-palette'))}
+                        style={{
+                            background: 'none',
+                            border: 'none',
+                            fontSize: '16px',
+                            cursor: 'pointer',
+                            padding: '6px 10px',
+                            borderRadius: '50%',
+                            transition: 'background 0.2s, transform 0.2s',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            marginRight: '4px',
+                            color: 'var(--text-primary)'
+                        }}
+                        onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'var(--border-color)')}
+                        onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'transparent')}
+                        title="Zoeken (Ctrl+K)"
+                        aria-label="Stamboom doorzoeken"
+                    >
+                        🔍
+                    </button>
+
                     {/* Dark Mode Toggle Button (always visible) */}
                     <button 
                         onClick={toggleTheme}
@@ -152,6 +203,7 @@ const Navbar: React.FC = () => {
                         onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'var(--border-color)')}
                         onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'transparent')}
                         title={isDarkMode ? 'Lichte modus' : 'Donkere modus'}
+                        aria-label={isDarkMode ? 'Schakel over naar lichte modus' : 'Schakel over naar donkere modus'}
                     >
                         {isDarkMode ? '☀️' : '🌙'}
                     </button>
@@ -213,13 +265,14 @@ const Navbar: React.FC = () => {
                         ].map(item => (
                             <button
                                 key={item.path}
-                                onClick={navigate(rootPath + (item.path === '/' ? '' : item.path))}
+                                onClick={handleNavigate(item.path)}
                                 style={{
                                     background: 'none',
                                     border: 'none',
                                     fontSize: '18px',
                                     fontWeight: '700',
-                                    color: 'var(--text-primary)',
+                                    color: isActive(item.path) ? 'var(--primary-color)' : 'var(--text-primary)',
+                                    backgroundColor: isActive(item.path) ? 'var(--border-color)' : 'transparent',
                                     cursor: 'pointer',
                                     padding: '12px 24px',
                                     width: '100%',
@@ -228,8 +281,16 @@ const Navbar: React.FC = () => {
                                     fontFamily: 'inherit',
                                     transition: 'background 0.2s'
                                 }}
-                                onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'var(--border-color)')}
-                                onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'transparent')}
+                                onMouseEnter={e => {
+                                    if (!isActive(item.path)) {
+                                        e.currentTarget.style.backgroundColor = 'var(--border-color)';
+                                    }
+                                }}
+                                onMouseLeave={e => {
+                                    if (!isActive(item.path)) {
+                                        e.currentTarget.style.backgroundColor = 'transparent';
+                                    }
+                                }}
                             >
                                 {item.label}
                             </button>

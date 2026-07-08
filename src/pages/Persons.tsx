@@ -1,7 +1,10 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { IPersons } from '../interfaces/IPersons';
 import { Link } from 'react-router-dom';
 import { parseDateToNumber, formatDate } from '../utils/dateUtils';
+import { getBookmarks, toggleBookmark } from '../utils/bookmarks';
+import { exportToGedcom, downloadGedcomFile } from '../utils/gedcomExport';
+import { showToast } from '../components/Toast';
 
 function Persons({ persons }: { persons: IPersons }) {
     const [searchQuery, setSearchQuery] = useState('');
@@ -9,6 +12,16 @@ function Persons({ persons }: { persons: IPersons }) {
     const [sortKey, setSortKey] = useState<'name' | 'sex' | 'birth' | 'death'>('name');
     const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
     const itemsPerPage = 25;
+
+    const [starredPointers, setStarredPointers] = useState<string[]>(getBookmarks());
+
+    useEffect(() => {
+        const handleChanged = () => {
+            setStarredPointers(getBookmarks());
+        };
+        window.addEventListener('bookmarks-changed', handleChanged);
+        return () => window.removeEventListener('bookmarks-changed', handleChanged);
+    }, []);
 
     // Filter persons based on search query
     const filteredPersons = useMemo(() => {
@@ -94,13 +107,23 @@ function Persons({ persons }: { persons: IPersons }) {
         return sortDirection === 'asc' ? ' ▲' : ' ▼';
     };
 
+    const handleExport = () => {
+        if (sortedPersons.length === 0) {
+            showToast('Geen personen om te exporteren!', 'warning');
+            return;
+        }
+        const content = exportToGedcom(sortedPersons);
+        downloadGedcomFile('stamboom-selectie.ged', content);
+        showToast(`${sortedPersons.length} personen geëxporteerd naar GEDCOM!`, 'success');
+    };
+
     return (
         <div className="page-container">
             <h1 className="page-title">Personenlijst</h1>
             <p className="page-subtitle">Blader door alle leden van je stamboom en bekijk hun details.</p>
 
             {/* Search and Sort Toolbar */}
-            <div style={{ marginBottom: '25px', display: 'flex', gap: '15px', flexWrap: 'wrap', alignItems: 'center' }}>
+            <div style={{ marginBottom: '25px', display: 'flex', gap: '15px', flexWrap: 'wrap', alignItems: 'center', width: '100%' }}>
                 <input
                     type="text"
                     placeholder="Zoek op voornaam, achternaam of datum..."
@@ -124,6 +147,30 @@ function Persons({ persons }: { persons: IPersons }) {
                 <div style={{ fontSize: '14px', color: 'var(--text-secondary)', fontWeight: '600' }}>
                     {sortedPersons.length} resultaten gevonden
                 </div>
+                <div style={{ flex: 1 }} />
+                <button
+                    onClick={handleExport}
+                    style={{
+                        padding: '10px 20px',
+                        borderRadius: '20px',
+                        border: '1px solid var(--border-color)',
+                        backgroundColor: 'var(--card-bg)',
+                        color: 'var(--text-primary)',
+                        fontWeight: '600',
+                        fontSize: '13px',
+                        cursor: 'pointer',
+                        boxShadow: 'var(--shadow-sm)',
+                        transition: 'all 0.2s',
+                        fontFamily: 'inherit',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px'
+                    }}
+                    onMouseEnter={e => e.currentTarget.style.backgroundColor = 'var(--bg-color)'}
+                    onMouseLeave={e => e.currentTarget.style.backgroundColor = 'var(--card-bg)'}
+                >
+                    📥 Exporteer selectie (.ged)
+                </button>
             </div>
 
             {/* Table */}
@@ -133,6 +180,7 @@ function Persons({ persons }: { persons: IPersons }) {
                         <table>
                             <thead>
                                 <tr>
+                                    <th style={{ width: '40px', textAlign: 'center' }}>★</th>
                                     <th onClick={() => handleSort('name')} style={{ cursor: 'pointer', userSelect: 'none', position: 'relative' }}>
                                         Naam{renderSortIndicator('name')}
                                     </th>
@@ -151,14 +199,38 @@ function Persons({ persons }: { persons: IPersons }) {
                             <tbody>
                                 {paginatedPersons.map(person => {
                                     const genderLabel = person.sex === 'M' ? 'Man' : person.sex === 'F' ? 'Vrouw' : 'Onbekend';
-                                    const genderColor = person.sex === 'M' ? 'rgba(59, 130, 246, 0.08)' : person.sex === 'F' ? 'rgba(236, 72, 153, 0.08)' : '#f1f5f9';
+                                    const genderColor = person.sex === 'M' ? 'rgba(59, 130, 246, 0.08)' : person.sex === 'F' ? 'rgba(236, 72, 153, 0.08)' : 'var(--border-color)';
                                     const textColor = person.sex === 'M' ? 'var(--male-color)' : person.sex === 'F' ? 'var(--female-color)' : 'var(--text-secondary)';
 
                                     const birthVal = formatDate(person.birth?.date) || formatDate(person.christening?.date) || '-';
                                     const deathVal = formatDate(person.death?.date) || formatDate(person.burial?.date) || '-';
 
+                                    const isStarred = starredPointers.includes(person.pointer || '');
+
                                     return (
                                         <tr key={person.pointer}>
+                                            <td style={{ textAlign: 'center' }}>
+                                                <button
+                                                    onClick={() => toggleBookmark(person.pointer || '')}
+                                                    style={{
+                                                        border: 'none',
+                                                        background: 'none',
+                                                        cursor: 'pointer',
+                                                        fontSize: '18px',
+                                                        padding: 0,
+                                                        color: isStarred ? '#fbbf24' : 'var(--text-secondary)',
+                                                        transition: 'transform 0.15s ease',
+                                                        display: 'inline-flex',
+                                                        alignItems: 'center',
+                                                        justifyContent: 'center'
+                                                    }}
+                                                    onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.2)'}
+                                                    onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
+                                                    title={isStarred ? 'Verwijder uit favorieten' : 'Voeg toe aan favorieten'}
+                                                >
+                                                    {isStarred ? '★' : '☆'}
+                                                </button>
+                                            </td>
                                             <td style={{ fontWeight: '600' }}>
                                                 <Link to={`/personen/${person.pointer}`} style={{ color: 'var(--primary-color)', textDecoration: 'none' }}>
                                                     {person.firstName || '?'} {person.lastName || '?'}
@@ -205,8 +277,8 @@ function Persons({ persons }: { persons: IPersons }) {
                                     padding: '8px 16px',
                                     borderRadius: '18px',
                                     border: '1px solid var(--border-color)',
-                                    backgroundColor: currentPage === 1 ? '#f8fafc' : 'white',
-                                    color: currentPage === 1 ? '#94a3b8' : 'var(--text-primary)',
+                                    backgroundColor: currentPage === 1 ? 'var(--bg-color)' : 'var(--card-bg)',
+                                    color: currentPage === 1 ? 'var(--text-secondary)' : 'var(--text-primary)',
                                     cursor: currentPage === 1 ? 'not-allowed' : 'pointer',
                                     fontWeight: '600',
                                     fontSize: '13px',
@@ -225,8 +297,8 @@ function Persons({ persons }: { persons: IPersons }) {
                                     padding: '8px 16px',
                                     borderRadius: '18px',
                                     border: '1px solid var(--border-color)',
-                                    backgroundColor: currentPage === totalPages ? '#f8fafc' : 'white',
-                                    color: currentPage === totalPages ? '#94a3b8' : 'var(--text-primary)',
+                                    backgroundColor: currentPage === totalPages ? 'var(--bg-color)' : 'var(--card-bg)',
+                                    color: currentPage === totalPages ? 'var(--text-secondary)' : 'var(--text-primary)',
                                     cursor: currentPage === totalPages ? 'not-allowed' : 'pointer',
                                     fontWeight: '600',
                                     fontSize: '13px',

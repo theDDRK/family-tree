@@ -3,20 +3,38 @@ import './App.css';
 import { readGedcom } from 'read-gedcom';
 import { IDatePlace, IPerson, IPersons } from './interfaces/IPersons';
 import { IFamilies } from './interfaces/IFamilies';
-import Tree from './pages/Tree';
 import Navbar from './components/Navbar';
+import SearchPalette from './components/SearchPalette';
+import EmptyState from './components/EmptyState';
+import { ToastContainer } from './components/Toast';
+import SkeletonLoader from './components/SkeletonLoader';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
-import Home from './pages/Home';
-import Statistics from './pages/Statistics';
-import Connections from './pages/Connections';
-import Hints from './pages/Hints';
-import PersonDetail from './pages/PersonDetail';
-import Persons from './pages/Persons';
-import MapPage from './pages/Map';
-import Timeline from './pages/Timeline';
-import TreeHealth from './pages/TreeHealth';
-import Trivia from './pages/Trivia';
 import { getItem, setItem } from './utils/indexedDB';
+
+const Home = React.lazy(() => import('./pages/Home'));
+const Tree = React.lazy(() => import('./pages/Tree'));
+const MapPage = React.lazy(() => import('./pages/Map'));
+const Timeline = React.lazy(() => import('./pages/Timeline'));
+const Statistics = React.lazy(() => import('./pages/Statistics'));
+const Connections = React.lazy(() => import('./pages/Connections'));
+const TreeHealth = React.lazy(() => import('./pages/TreeHealth'));
+const Trivia = React.lazy(() => import('./pages/Trivia'));
+const Persons = React.lazy(() => import('./pages/Persons'));
+const PersonDetail = React.lazy(() => import('./pages/PersonDetail'));
+const Hints = React.lazy(() => import('./pages/Hints'));
+
+const PageFallback = () => (
+  <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '60vh' }}>
+    <div className="spinner" style={{ border: '4px solid var(--border-color)', width: '40px', height: '40px', borderRadius: '50%', borderLeftColor: 'var(--primary-color)', animation: 'spin 1s linear infinite' }} />
+    <style>{`
+      @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+      }
+    `}</style>
+  </div>
+);
+
 
 function App() {
   const [persons, setPersons] = React.useState<IPersons>();
@@ -134,44 +152,31 @@ function App() {
   };
 
   if (isLoading) {
-    const progress = getProgressPercentage(loadingStage);
-    return (
-      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', flexDirection: 'column', fontFamily: 'sans-serif', backgroundColor: 'var(--bg-color)', color: 'var(--text-primary)' }}>
-        <div className="spinner" style={{ border: '4px solid var(--border-color)', width: '40px', height: '40px', borderRadius: '50%', borderLeftColor: 'var(--primary-color)', animation: 'spin 1s linear infinite' }} />
-        <p style={{ marginTop: '20px', color: 'var(--primary-color)', fontWeight: 600, fontSize: '18px' }}>{loadingStage || 'Gegevens laden...'}</p>
-        {progress > 0 && (
-          <div style={{ width: '200px', height: '6px', backgroundColor: 'var(--border-color)', borderRadius: '3px', marginTop: '10px', overflow: 'hidden' }}>
-            <div style={{ width: `${progress}%`, height: '100%', backgroundColor: 'var(--primary-color)', transition: 'width 0.3s ease-in-out' }} />
-          </div>
-        )}
-        <style>{`
-          @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-          }
-        `}</style>
-      </div>
-    );
+    return <SkeletonLoader />;
   }
 
   return (
     <div className='App'>
-      <Navbar />
       <BrowserRouter basename='/family-tree'>
-        <Routes>
-          <Route path='/' element={<Home filename={filename} persons={persons} handleFileChange={handleUpload} />} />
-          {persons && <Route path='/stamboom' element={<Tree persons={persons} rootPerson={rootPerson} generations={generations} families={families} />} />}
-          {persons && <Route path='/kaart' element={<MapPage persons={persons} />} />}
-          {persons && <Route path='/tijdreis' element={<Timeline persons={persons} />} />}
-          {persons && <Route path='/statistieken' element={<Statistics persons={persons} />} />}
-          {persons && <Route path='/connecties' element={<Connections persons={persons} />} />}
-          {persons && <Route path='/kwaliteit' element={<TreeHealth persons={persons} />} />}
-          {persons && <Route path='/trivia' element={<Trivia persons={persons} />} />}
-          {persons && <Route path='/personen' element={<Persons persons={persons} />} />}
-          {persons && <Route path='/personen/:id' element={<PersonDetail persons={persons} />} />}
-          {persons && <Route path='/hints' element={<Hints persons={persons} />} />}
-          {/* <Route path='/*' element={<Navigate to='/' />} /> */}
-        </Routes>
+        <Navbar />
+        <SearchPalette persons={persons} />
+        <ToastContainer />
+        <React.Suspense fallback={<PageFallback />}>
+          <Routes>
+            <Route path='/' element={<Home filename={filename} persons={persons} handleFileChange={handleUpload} />} />
+            <Route path='/stamboom' element={persons ? <Tree persons={persons} rootPerson={rootPerson} generations={generations} families={families} /> : <EmptyState />} />
+            <Route path='/kaart' element={persons ? <MapPage persons={persons} /> : <EmptyState />} />
+            <Route path='/tijdreis' element={persons ? <Timeline persons={persons} /> : <EmptyState />} />
+            <Route path='/statistieken' element={persons ? <Statistics persons={persons} /> : <EmptyState />} />
+            <Route path='/connecties' element={persons ? <Connections persons={persons} /> : <EmptyState />} />
+            <Route path='/kwaliteit' element={persons ? <TreeHealth persons={persons} /> : <EmptyState />} />
+            <Route path='/trivia' element={persons ? <Trivia persons={persons} /> : <EmptyState />} />
+            <Route path='/personen' element={persons ? <Persons persons={persons} /> : <EmptyState />} />
+            <Route path='/personen/:id' element={persons ? <PersonDetail persons={persons} /> : <EmptyState />} />
+            <Route path='/hints' element={persons ? <Hints persons={persons} /> : <EmptyState />} />
+            {/* <Route path='/*' element={<Navigate to='/' />} /> */}
+          </Routes>
+        </React.Suspense>
       </BrowserRouter>
     </div>
   );

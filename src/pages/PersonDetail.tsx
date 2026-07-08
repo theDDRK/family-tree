@@ -1,7 +1,9 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { IPerson, IPersons } from '../interfaces/IPersons';
 import { getYearSafe, formatDate } from '../utils/dateUtils';
+import { isBookmarked, toggleBookmark } from '../utils/bookmarks';
+import { showToast } from '../components/Toast';
 
 const HISTORICAL_EVENTS: { year: number; title: string; icon: string; desc: string }[] = [
   { year: 1568, title: 'Begin Tachtigjarige Oorlog', icon: '⚔️', desc: 'Nederland begint zijn onafhankelijkheidsstrijd tegen Spanje.' },
@@ -34,6 +36,13 @@ function PersonDetail({ persons }: { persons: IPersons }) {
     const navigate = useNavigate();
     const person = persons.persons.find(p => p.pointer === id) as IPerson;
     const [showHistoricalContext, setShowHistoricalContext] = useState(false);
+    const [starred, setStarred] = useState(() => person ? isBookmarked(person.pointer || '') : false);
+
+    useEffect(() => {
+        if (person) {
+            setStarred(isBookmarked(person.pointer || ''));
+        }
+    }, [id, person]);
 
     const goBack = () => {
         if (window.history.length > 2) {
@@ -211,7 +220,7 @@ function PersonDetail({ persons }: { persons: IPersons }) {
                     marginBottom: '20px',
                     borderRadius: '20px',
                     border: '1px solid var(--border-color)',
-                    backgroundColor: 'white',
+                    backgroundColor: 'var(--card-bg)',
                     color: 'var(--text-secondary)',
                     fontWeight: '600',
                     fontSize: '13px',
@@ -220,8 +229,8 @@ function PersonDetail({ persons }: { persons: IPersons }) {
                     transition: 'all 0.2s',
                     fontFamily: 'inherit',
                 }}
-                onMouseEnter={e => { e.currentTarget.style.backgroundColor = '#f8fafc'; e.currentTarget.style.color = 'var(--text-primary)'; }}
-                onMouseLeave={e => { e.currentTarget.style.backgroundColor = 'white'; e.currentTarget.style.color = 'var(--text-secondary)'; }}
+                onMouseEnter={e => { e.currentTarget.style.backgroundColor = 'var(--bg-color)'; e.currentTarget.style.color = 'var(--text-primary)'; }}
+                onMouseLeave={e => { e.currentTarget.style.backgroundColor = 'var(--card-bg)'; e.currentTarget.style.color = 'var(--text-secondary)'; }}
             >
                 ← Terug
             </button>
@@ -232,7 +241,7 @@ function PersonDetail({ persons }: { persons: IPersons }) {
                     width: '70px',
                     height: '70px',
                     borderRadius: '50%',
-                    backgroundColor: person.sex === 'M' ? '#dbeafe' : person.sex === 'F' ? '#fce7f3' : '#f1f5f9',
+                    backgroundColor: person.sex === 'M' ? '#dbeafe' : person.sex === 'F' ? '#fce7f3' : 'var(--border-color)',
                     color: textColor,
                     display: 'flex',
                     alignItems: 'center',
@@ -249,7 +258,7 @@ function PersonDetail({ persons }: { persons: IPersons }) {
                             borderRadius: '12px', 
                             fontSize: '11px', 
                             fontWeight: '700', 
-                            backgroundColor: person.sex === 'M' ? 'rgba(59, 130, 246, 0.08)' : person.sex === 'F' ? 'rgba(236, 72, 153, 0.08)' : '#f1f5f9', 
+                            backgroundColor: person.sex === 'M' ? 'rgba(59, 130, 246, 0.08)' : person.sex === 'F' ? 'rgba(236, 72, 153, 0.08)' : 'var(--border-color)', 
                             color: textColor,
                             textTransform: 'uppercase',
                             letterSpacing: '0.5px'
@@ -262,7 +271,7 @@ function PersonDetail({ persons }: { persons: IPersons }) {
                                 borderRadius: '12px', 
                                 fontSize: '11px', 
                                 fontWeight: '700', 
-                                backgroundColor: '#f1f5f9', 
+                                backgroundColor: 'var(--border-color)', 
                                 color: 'var(--text-secondary)',
                                 textTransform: 'uppercase'
                             }}>
@@ -270,28 +279,75 @@ function PersonDetail({ persons }: { persons: IPersons }) {
                             </span>
                         )}
                     </div>
-                    <h1 style={{ margin: '0 0 4px 0', fontSize: '28px', fontWeight: '800' }}>
+                    <h1 style={{ margin: '0 0 4px 0', fontSize: '28px', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '12px' }}>
                         {person.firstName || '?'} {person.lastName || '?'}
+                        <button
+                            onClick={() => {
+                                toggleBookmark(person.pointer || '');
+                                setStarred(prev => !prev);
+                            }}
+                            style={{
+                                border: 'none',
+                                background: 'none',
+                                cursor: 'pointer',
+                                fontSize: '24px',
+                                padding: '4px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                transition: 'transform 0.2s',
+                                color: starred ? '#fbbf24' : 'var(--text-secondary)'
+                            }}
+                            onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.15)'}
+                            onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
+                            title={starred ? 'Verwijder uit favorieten' : 'Voeg toe aan favorieten'}
+                        >
+                            {starred ? '★' : '☆'}
+                        </button>
                     </h1>
                     <span style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
                         ID: {person.pointer}
                     </span>
                 </div>
-                
-                <Link to={`/stamboom?id=${person.pointer}`} style={{
-                    padding: '10px 20px',
-                    borderRadius: '20px',
-                    border: '1px solid var(--border-color)',
-                    backgroundColor: 'white',
-                    color: 'var(--text-primary)',
-                    fontWeight: '600',
-                    fontSize: '13px',
-                    textDecoration: 'none',
-                    boxShadow: 'var(--shadow-sm)',
-                    transition: 'all 0.2s'
-                }}>
-                    Bekijk in Stamboom
-                </Link>
+                <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                    <button
+                        onClick={() => {
+                            navigator.clipboard.writeText(window.location.href);
+                            showToast('Link gekopieerd naar klembord!', 'success');
+                        }}
+                        style={{
+                            padding: '10px 20px',
+                            borderRadius: '20px',
+                            border: '1px solid var(--border-color)',
+                            backgroundColor: 'var(--card-bg)',
+                            color: 'var(--text-secondary)',
+                            fontWeight: '600',
+                            fontSize: '13px',
+                            cursor: 'pointer',
+                            boxShadow: 'var(--shadow-sm)',
+                            transition: 'all 0.2s',
+                            fontFamily: 'inherit'
+                        }}
+                        onMouseEnter={e => e.currentTarget.style.backgroundColor = 'var(--bg-color)'}
+                        onMouseLeave={e => e.currentTarget.style.backgroundColor = 'var(--card-bg)'}
+                    >
+                        🔗 Kopieer Link
+                    </button>
+                    <Link to={`/stamboom?id=${person.pointer}`} style={{
+                        padding: '10px 20px',
+                        borderRadius: '20px',
+                        border: '1px solid var(--border-color)',
+                        backgroundColor: 'var(--card-bg)',
+                        color: 'var(--text-primary)',
+                        fontWeight: '600',
+                        fontSize: '13px',
+                        textDecoration: 'none',
+                        boxShadow: 'var(--shadow-sm)',
+                        transition: 'all 0.2s'
+                    }}>
+                        Bekijk in Stamboom
+                    </Link>
+                </div>
             </div>
 
             {/* Three-Column Modern Layout */}
@@ -442,7 +498,7 @@ function PersonDetail({ persons }: { persons: IPersons }) {
                                         width: '20px',
                                         height: '20px',
                                         borderRadius: '50%',
-                                        backgroundColor: event.isHistorical ? 'rgba(245, 158, 11, 0.12)' : 'white',
+                                        backgroundColor: event.isHistorical ? 'rgba(245, 158, 11, 0.12)' : 'var(--card-bg)',
                                         border: event.isHistorical ? '2px solid #f59e0b' : '2px solid var(--primary-color)',
                                         display: 'flex',
                                         alignItems: 'center',
@@ -538,7 +594,7 @@ function PersonDetail({ persons }: { persons: IPersons }) {
                                     {person.partners.map((partner, index) => {
                                         const marriageInfo = person.marriages?.find(m => m.partnerPointer === partner.pointer);
                                         return (
-                                            <div key={partner.pointer} style={{ backgroundColor: '#f8fafc', padding: '12px', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
+                                            <div key={partner.pointer} style={{ backgroundColor: 'var(--bg-color)', padding: '12px', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
                                                 <div style={{ marginBottom: '8px' }}>
                                                     <span style={{ fontSize: '10px', fontWeight: '700', color: 'var(--text-secondary)', textTransform: 'uppercase', display: 'block', marginBottom: '4px' }}>Partner {index + 1}</span>
                                                     <Link to={`/personen/${partner.pointer}`} className={`label ${partner.sex}`} style={{ textDecoration: 'none', margin: '0', display: 'inline-block' }}>

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { LineChart, CartesianGrid, XAxis, YAxis, Tooltip, Legend, Line, BarChart, Bar, PieChart, Pie, Cell, ResponsiveContainer, Brush } from 'recharts';
 import { IPersons } from '../interfaces/IPersons';
 import { Link } from 'react-router-dom';
@@ -209,21 +209,23 @@ function getPeopleInAgeRange(persons: IPersons, rangeName: string) {
 }
 
 function Statistics({ persons }: { persons: IPersons }) {
-    const birthdateMonths = getBirthdateMonths(persons);
-    const deathYears = getDeathYears(persons);
-    const deathMonths = getDeathMonths(persons);
-    const lifespanDist = getLifespanDistribution(persons);
+    const birthdateMonths = useMemo(() => getBirthdateMonths(persons), [persons]);
+    const deathYears = useMemo(() => getDeathYears(persons), [persons]);
+    const deathMonths = useMemo(() => getDeathMonths(persons), [persons]);
+    const lifespanDist = useMemo(() => getLifespanDistribution(persons), [persons]);
     
     const [deathSelectedYear, setDeathSelectedYear] = useState<number | null>(null);
     const [selectedBirthday, setSelectedBirthday] = useState<string | null>(null);
     const [selectedAgeRange, setSelectedAgeRange] = useState<string | null>(null);
 
-    const selectedDeathYear = deathSelectedYear !== null
-        ? persons.persons.filter(person => {
-            const y = getYearSafe(person.death?.date) || getYearSafe(person.burial?.date);
-            return y === deathSelectedYear;
-        })
-        : [];
+    const selectedDeathYear = useMemo(() => {
+        return deathSelectedYear !== null
+            ? persons.persons.filter(person => {
+                const y = getYearSafe(person.death?.date) || getYearSafe(person.burial?.date);
+                return y === deathSelectedYear;
+            })
+            : [];
+    }, [persons, deathSelectedYear]);
 
     return (
         <div className="page-container" style={{ maxWidth: '1100px' }}>
@@ -246,10 +248,10 @@ function Statistics({ persons }: { persons: IPersons }) {
                     <div style={{ width: '100%', height: '320px' }}>
                         <ResponsiveContainer width="100%" height="100%">
                             <BarChart data={lifespanDist} onClick={(event: any) => event && setSelectedAgeRange(event.activeLabel)}>
-                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border-color)" />
                                 <XAxis dataKey="name" stroke="#94a3b8" fontSize={11} tickLine={false} />
                                 <YAxis stroke="#94a3b8" fontSize={11} tickLine={false} />
-                                <Tooltip cursor={{ fill: 'rgba(79, 70, 229, 0.02)' }} />
+                                <Tooltip cursor={{ fill: 'rgba(79, 70, 229, 0.02)' }} contentStyle={{ backgroundColor: 'var(--card-bg)', borderColor: 'var(--border-color)', color: 'var(--text-primary)' }} />
                                 <Bar dataKey="aantal" fill="var(--primary-color)" radius={[4, 4, 0, 0]} cursor="pointer" />
                             </BarChart>
                         </ResponsiveContainer>
@@ -280,7 +282,7 @@ function Statistics({ persons }: { persons: IPersons }) {
                                     <BarChart data={getDetailedAgeDistribution(persons, selectedAgeRange)}>
                                         <XAxis dataKey="leeftijd" stroke="#94a3b8" fontSize={9} tickLine={false} />
                                         <YAxis stroke="#94a3b8" fontSize={9} tickLine={false} />
-                                        <Tooltip />
+                                        <Tooltip contentStyle={{ backgroundColor: 'var(--card-bg)', borderColor: 'var(--border-color)', color: 'var(--text-primary)' }} />
                                         <Bar dataKey="aantal" fill="var(--female-color)" radius={[2, 2, 0, 0]} />
                                     </BarChart>
                                 </ResponsiveContainer>
@@ -296,7 +298,7 @@ function Statistics({ persons }: { persons: IPersons }) {
                                         const bYear = getYearSafe(p.birth?.date) || getYearSafe(p.christening?.date);
                                         const dYear = getYearSafe(p.death?.date) || getYearSafe(p.burial?.date);
                                         return (
-                                            <div key={p.pointer} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', borderBottom: '1px solid #f1f5f9', paddingBottom: '6px' }}>
+                                            <div key={p.pointer} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', borderBottom: '1px solid var(--border-color)', paddingBottom: '6px' }}>
                                                 <Link to={`/personen/${p.pointer}`} style={{ fontWeight: '600', color: 'var(--text-primary)', textDecoration: 'none' }}
                                                     onMouseEnter={e => (e.currentTarget.style.color = 'var(--primary-color)')}
                                                     onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-primary)')}
@@ -325,10 +327,10 @@ function Statistics({ persons }: { persons: IPersons }) {
                     <div style={{ width: '100%', height: '300px' }}>
                         <ResponsiveContainer width="100%" height="100%">
                             <BarChart data={birthdateMonths}>
-                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border-color)" />
                                 <XAxis dataKey="maand" stroke="#94a3b8" fontSize={11} tickLine={false} />
                                 <YAxis stroke="#94a3b8" fontSize={11} tickLine={false} />
-                                <Tooltip cursor={{ fill: 'rgba(79, 70, 229, 0.02)' }} />
+                                <Tooltip cursor={{ fill: 'rgba(79, 70, 229, 0.02)' }} contentStyle={{ backgroundColor: 'var(--card-bg)', borderColor: 'var(--border-color)', color: 'var(--text-primary)' }} />
                                 <Bar dataKey="aantal" fill="var(--primary-color)" radius={[4, 4, 0, 0]} />
                             </BarChart>
                         </ResponsiveContainer>
@@ -344,10 +346,10 @@ function Statistics({ persons }: { persons: IPersons }) {
                     <div style={{ width: '100%', height: '300px' }}>
                         <ResponsiveContainer width="100%" height="100%">
                             <BarChart data={deathMonths}>
-                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border-color)" />
                                 <XAxis dataKey="maand" stroke="#94a3b8" fontSize={11} tickLine={false} />
                                 <YAxis stroke="#94a3b8" fontSize={11} tickLine={false} />
-                                <Tooltip cursor={{ fill: 'rgba(236, 72, 153, 0.02)' }} />
+                                <Tooltip cursor={{ fill: 'rgba(236, 72, 153, 0.02)' }} contentStyle={{ backgroundColor: 'var(--card-bg)', borderColor: 'var(--border-color)', color: 'var(--text-primary)' }} />
                                 <Bar dataKey="aantal" fill="var(--female-color)" radius={[4, 4, 0, 0]} />
                             </BarChart>
                         </ResponsiveContainer>
@@ -366,10 +368,10 @@ function Statistics({ persons }: { persons: IPersons }) {
                     <div style={{ width: '100%', height: '320px' }}>
                         <ResponsiveContainer width="100%" height="100%">
                             <BarChart data={getBirthdaysPerDay(persons)} onClick={(event: any) => event && setSelectedBirthday(event.activeLabel)}>
-                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border-color)" />
                                 <XAxis dataKey={(item: { dag: string; maand: string }) => `${item.dag} ${item.maand}`} stroke="#94a3b8" fontSize={10} tickLine={false} />
                                 <YAxis stroke="#94a3b8" fontSize={11} tickLine={false} />
-                                <Tooltip />
+                                <Tooltip contentStyle={{ backgroundColor: 'var(--card-bg)', borderColor: 'var(--border-color)', color: 'var(--text-primary)' }} />
                                 <Bar dataKey="aantal" fill="var(--primary-color)" radius={[3, 3, 0, 0]} cursor="pointer" />
                             </BarChart>
                         </ResponsiveContainer>
@@ -383,7 +385,7 @@ function Statistics({ persons }: { persons: IPersons }) {
                                     {persons.persons
                                         .filter(p => p.birth?.date?.startsWith(selectedBirthday))
                                         .map(p => (
-                                            <div key={p.pointer} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', borderBottom: '1px solid #f1f5f9', paddingBottom: '6px' }}>
+                                            <div key={p.pointer} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', borderBottom: '1px solid var(--border-color)', paddingBottom: '6px' }}>
                                                 <Link to={`/personen/${p.pointer}`} style={{ fontWeight: '600', color: 'var(--text-primary)', textDecoration: 'none' }}
                                                     onMouseEnter={e => (e.currentTarget.style.color = 'var(--primary-color)')}
                                                     onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-primary)')}
@@ -415,12 +417,12 @@ function Statistics({ persons }: { persons: IPersons }) {
                     <div style={{ width: '100%', height: '320px' }}>
                         <ResponsiveContainer width="100%" height="100%">
                             <LineChart data={deathYears} onClick={(event: any) => event && event.activePayload && setDeathSelectedYear(event.activePayload[0].payload.rawYear)}>
-                                <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                                <CartesianGrid strokeDasharray="3 3" stroke="var(--border-color)" />
                                 <XAxis dataKey="jaar" stroke="#94a3b8" fontSize={11} tickLine={false} />
                                 <YAxis stroke="#94a3b8" fontSize={11} tickLine={false} />
-                                <Tooltip />
+                                <Tooltip contentStyle={{ backgroundColor: 'var(--card-bg)', borderColor: 'var(--border-color)', color: 'var(--text-primary)' }} />
                                 <Line type="monotone" dataKey="aantal" stroke="var(--female-color)" strokeWidth={2} dot={{ r: 3, fill: 'var(--female-color)' }} activeDot={{ r: 6 }} cursor="pointer" />
-                                <Brush dataKey="jaar" height={30} stroke="var(--female-color)" fill="#f8fafc" />
+                                <Brush dataKey="jaar" height={30} stroke="var(--female-color)" fill="var(--bg-color)" />
                             </LineChart>
                         </ResponsiveContainer>
                     </div>
@@ -433,7 +435,7 @@ function Statistics({ persons }: { persons: IPersons }) {
                                 </h4>
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                                      {selectedDeathYear.map(p => (
-                                        <div key={p.pointer} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', borderBottom: '1px solid #f1f5f9', paddingBottom: '6px' }}>
+                                        <div key={p.pointer} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', borderBottom: '1px solid var(--border-color)', paddingBottom: '6px' }}>
                                             <Link to={`/personen/${p.pointer}`} style={{ fontWeight: '600', color: 'var(--text-primary)', textDecoration: 'none' }}
                                                 onMouseEnter={e => (e.currentTarget.style.color = 'var(--primary-color)')}
                                                 onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-primary)')}
@@ -671,9 +673,9 @@ function Statistics({ persons }: { persons: IPersons }) {
                                 >
                                     <Cell key="Mannen" fill="var(--male-color)" />
                                     <Cell key="Vrouwen" fill="var(--female-color)" />
-                                    <Cell key="Overig" fill="#cbd5e1" />
+                                    <Cell key="Overig" fill="var(--border-color)" />
                                 </Pie>
-                                <Tooltip />
+                                <Tooltip contentStyle={{ backgroundColor: 'var(--card-bg)', borderColor: 'var(--border-color)', color: 'var(--text-primary)' }} />
                                 <Legend />
                             </PieChart>
                         </ResponsiveContainer>
